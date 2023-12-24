@@ -1,0 +1,19 @@
+[package]
+name = "keter-test-runner"
+version = "0.1.0"
+edition = "2021"
+authors = ["John Nunley <dev@notgull.net>"]
+
+[dependencies]
+async-io = "2.2.2"
+async-process = "2.0.1"
+blocking = "1.5.1"
+clap = "4.4.11"
+color-eyre = "0.6.2"
+eyre = "0.6.11"
+futures-lite = "2.1.0"
+human-panic = "1.2.2"
+ignore = "0.4.21"
+keter-test.workspace = true
+owo-colors = "4.0.0"
+tracing-subscriber = "0.3.18"

@@ -146,7 +146,6 @@ impl TestHarness {
 /// Run tests with a harness.
 pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     // Set up hooks.
-    human_panic::setup_panic!();
     tracing_subscriber::fmt::try_init().ok();
     color_eyre::install().ok();
 
