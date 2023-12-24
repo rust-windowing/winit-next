@@ -6,6 +6,9 @@ authors = ["John Nunley <dev@notgull.net>"]
 
 [dependencies]
 async-net = "2.0.0"
+color-eyre = "0.6.2"
+human-panic = "1.2.2"
 inventory = "0.3.14"
 owo-colors = "4.0.0"
 serde = { version = "1.0.193", features = ["derive"] }
+tracing-subscriber = "0.3.18"

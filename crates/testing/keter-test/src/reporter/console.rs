@@ -1,7 +1,7 @@
 // MIT/Apache2
 
 use super::Reporter;
-use crate::{TestResult, TestStatus};
+use crate::{TestEvent, TestStatus, TestResult};
 
 use owo_colors::OwoColorize;
 use std::borrow::Cow;
@@ -20,6 +20,13 @@ pub struct ConsoleReporter {
     failures: Vec<(Cow<'static, str>, Cow<'static, str>)>,
 }
 
+impl Default for ConsoleReporter {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConsoleReporter {
     /// Create a new `ConsoleReporter`.
     #[inline]
@@ -34,18 +41,18 @@ impl ConsoleReporter {
 
 impl Reporter for ConsoleReporter {
     #[inline]
-    fn report(&mut self, test: TestResult) {
+    fn report(&mut self, test: TestEvent) {
         let mut cout = io::stdout().lock();
 
         match test {
-            TestResult::End { count: _ } => {
+            TestEvent::End { count: _ } => {
                 if self.exit_code == 0 {
                     writeln!(cout, "{}{}", "test result: ".white(), "ok".green()).unwrap();
                 } else {
                     writeln!(cout, "{}{}", "test result: ".white(), "FAILED".red()).unwrap();
                 }
             }
-            TestResult::BeginGroup { name, count } => {
+            TestEvent::BeginGroup { name, count } => {
                 writeln!(
                     cout,
                     "{}{}{}{}{}{}",
@@ -60,12 +67,12 @@ impl Reporter for ConsoleReporter {
 
                 self.indent += 1;
             }
-            TestResult::EndGroup(_name) => {}
-            TestResult::Result {
+            TestEvent::EndGroup(_name) => {}
+            TestEvent::Result(TestResult {
                 name,
                 status,
                 failure,
-            } => {
+            }) => {
                 write!(
                     cout,
                     "{}{}{}{}",
