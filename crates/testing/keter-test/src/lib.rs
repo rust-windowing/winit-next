@@ -4,16 +4,25 @@
 
 pub mod reporter;
 
+use async_channel::Sender;
 use async_lock::Mutex;
-use futures_lite::prelude::*;
+use futures_lite::{future, prelude::*};
+use owo_colors::OwoColorize;
+use reporter::Reporter;
+use serde::{Deserialize, Serialize};
+use web_time::Duration;
 
 use std::borrow::Cow;
+use std::env;
 use std::future::Future;
+use std::io;
 use std::panic;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+const DEFAULT_TCP_CONNECT_TIMEOUT: u64 = 15;
+
 /// The event of a test.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum TestEvent {
     /// There are no more tests.
@@ -39,7 +48,7 @@ pub enum TestEvent {
 }
 
 /// The result of the test.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TestResult {
     /// The name of the test.
     pub name: Cow<'static, str>,
@@ -52,7 +61,7 @@ pub struct TestResult {
 }
 
 /// The status of the test.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TestStatus {
     /// The test succeeded.
     Success,
@@ -141,10 +150,28 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     tracing_subscriber::fmt::try_init().ok();
     color_eyre::install().ok();
 
+    // Figure out which reporter we're using.
+    let reporter: Box<dyn reporter::Reporter + Send> =
+        if let Ok(address) = env::var("KETER_TEST_TCP_ADDRESS") {
+            Box::new(
+                future::block_on(reporter::TcpReporter::connect(
+                    address,
+                    Duration::from_secs(
+                        env::var("KETER_TEST_TCP_TIMEOUT")
+                            .ok()
+                            .and_then(|timeout| timeout.parse::<u64>().ok())
+                            .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT),
+                    ),
+                ))
+                .expect("failed to connect to TCP port"),
+            )
+        } else {
+            Box::new(reporter::ConsoleReporter::new())
+        };
+
     // Create our test harness.
-    // TODO: Other reporters.
     let harness = TestHarness {
-        reporter: Mutex::new(Box::new(reporter::ConsoleReporter::new())),
+        reporter: Mutex::new(reporter),
         count: AtomicUsize::new(0),
     };
 
@@ -154,7 +181,7 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     // Count tests.
     let TestHarness { reporter, count } = harness;
     let mut reporter = reporter.into_inner();
-    futures_lite::future::block_on(reporter.report(TestEvent::End {
+    future::block_on(reporter.report(TestEvent::End {
         count: count.into_inner(),
     }));
 
@@ -165,4 +192,81 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     }
 
     value
+}
+
+/// Drive a TCP listener at the specified port.
+pub async fn run_tcp_listener(
+    port: u16,
+    reporter: impl Reporter + Send + 'static,
+    once_ready: Sender<()>,
+) -> io::Result<()> {
+    // Bind to a listening port.
+    let listener =
+        async_net::TcpListener::bind((async_net::IpAddr::from([0u8, 0, 0, 0]), port)).await?;
+
+    // Wait for the client to connect.
+    println!(
+        "{} {:?}{}",
+        "listening at".white().italic(),
+        listener.local_addr()?.cyan().bold(),
+        ", waiting for connection...".white().italic()
+    );
+    once_ready.send(()).await.ok();
+    let (mut socket, addr) = async { listener.accept().await }
+        .or(async {
+            // Five-minute timeout.
+            async_io::Timer::after(Duration::from_secs(60 * 5)).await;
+            Err(io::ErrorKind::TimedOut.into())
+        })
+        .await?;
+
+    println!(
+        "{}{:?}",
+        "got connection at address ".white().italic(),
+        addr.cyan().bold()
+    );
+
+    // Start reading from the socket.
+    let mut buf = Vec::with_capacity(4096);
+    let reporter = Mutex::new(reporter);
+    let ex = async_executor::Executor::new();
+    let mut handles = vec![];
+
+    ex.run({
+        let ex = &ex;
+        let reporter = &reporter;
+        async move {
+            loop {
+                let mut bytes_to_read = [0u8; 8];
+
+                // Read number of bytes to read from the stream.
+                match socket.read_exact(&mut bytes_to_read).await {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
+                    Err(e) => return Err(e),
+                }
+
+                // Read the remaining bytes in this packet.
+                buf.resize(u64::from_le_bytes(bytes_to_read) as usize, 0);
+                socket.read_exact(&mut buf).await?;
+
+                // Parse to JSON.
+                let event: TestEvent = serde_json::from_slice(&buf).expect("failed to parse JSON");
+
+                // Spawn a task to write the event to the reporter.
+                handles.push(ex.spawn(async move {
+                    let mut reporter = reporter.lock().await;
+                    reporter.report(event).await;
+                }));
+            }
+
+            // Wait for all of the tasks to finish.
+            for handle in handles {
+                handle.await;
+            }
+
+            Ok(())
+        }
+    })
+    .await
 }
