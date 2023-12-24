@@ -1,0 +1,11 @@
+[package]
+name = "keter-test"
+version = "0.1.0"
+edition = "2021"
+authors = ["John Nunley <dev@notgull.net>"]
+
+[dependencies]
+async-net = "2.0.0"
+inventory = "0.3.14"
+owo-colors = "4.0.0"
+serde = { version = "1.0.193", features = ["derive"] }
