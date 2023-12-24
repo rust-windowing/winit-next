@@ -5,7 +5,9 @@ edition = "2021"
 authors = ["John Nunley <dev@notgull.net>"]
 
 [dependencies]
+async-lock = "3.2.0"
 async-net = "2.0.0"
+blocking = "1.5.1"
 color-eyre = "0.6.2"
 futures-lite = "2.1.0"
 human-panic = "1.2.2"

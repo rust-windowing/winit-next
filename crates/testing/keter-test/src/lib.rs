@@ -4,13 +4,13 @@
 
 pub mod reporter;
 
+use async_lock::Mutex;
 use futures_lite::prelude::*;
 
 use std::borrow::Cow;
 use std::future::Future;
 use std::panic;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
 
 /// The event of a test.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -74,15 +74,20 @@ impl TestHarness {
     /// Run with a test group.
     pub async fn group(&self, name: impl Into<String>, count: usize, f: impl Future<Output = ()>) {
         let name = name.into();
-        self.reporter.lock().unwrap().report(TestEvent::BeginGroup {
-            name: name.clone().into(),
-            count,
-        });
+        self.reporter
+            .lock()
+            .await
+            .report(TestEvent::BeginGroup {
+                name: name.clone().into(),
+                count,
+            })
+            .await;
         f.await;
         self.reporter
             .lock()
-            .unwrap()
-            .report(TestEvent::EndGroup(name.into()));
+            .await
+            .report(TestEvent::EndGroup(name.into()))
+            .await;
     }
 
     /// Run a test.
@@ -96,12 +101,13 @@ impl TestHarness {
             Ok(()) => {
                 self.reporter
                     .lock()
-                    .unwrap()
+                    .await
                     .report(TestEvent::Result(TestResult {
                         name: name.into(),
                         status: TestStatus::Success,
                         failure: "".into(),
-                    }));
+                    }))
+                    .await;
             }
 
             Err(err) => {
@@ -116,19 +122,20 @@ impl TestHarness {
 
                 self.reporter
                     .lock()
-                    .unwrap()
+                    .await
                     .report(TestEvent::Result(TestResult {
                         name: name.into(),
                         status: TestStatus::Failed,
                         failure,
-                    }));
+                    }))
+                    .await;
             }
         }
     }
 }
 
 /// Run tests with a harness.
-pub fn run_tests<T>(f: impl FnOnce(&mut TestHarness) -> T) -> T {
+pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     // Set up hooks.
     human_panic::setup_panic!();
     tracing_subscriber::fmt::try_init().ok();
@@ -136,16 +143,23 @@ pub fn run_tests<T>(f: impl FnOnce(&mut TestHarness) -> T) -> T {
 
     // Create our test harness.
     // TODO: Other reporters.
-    let mut harness = TestHarness {
+    let harness = TestHarness {
         reporter: Mutex::new(Box::new(reporter::ConsoleReporter::new())),
         count: AtomicUsize::new(0),
     };
 
     // Run the tests.
-    let value = f(&mut harness);
+    let value = f(&harness);
+
+    // Count tests.
+    let TestHarness { reporter, count } = harness;
+    let mut reporter = reporter.into_inner();
+    futures_lite::future::block_on(reporter.report(TestEvent::End {
+        count: count.into_inner(),
+    }));
 
     // Finish with an exit code.
-    let code = harness.reporter.into_inner().unwrap().finish();
+    let code = reporter.finish();
     if code != 0 {
         std::process::exit(code);
     }
