@@ -24,7 +24,7 @@ fn executor() -> &'static Executor<'static> {
 
     EXECUTOR.get_or_init(|| {
         // Only use two executor threads.
-        for i in 0..4 {
+        for i in 0..2 {
             thread::Builder::new()
                 .name(format!("keter-test-runner-{i}"))
                 .spawn(|| {

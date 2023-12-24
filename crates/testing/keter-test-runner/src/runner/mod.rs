@@ -1,13 +1,13 @@
 // MIT/Apache2 License
 
 mod command;
+mod environment;
 mod style;
 mod util;
 
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 
-use std::borrow::Cow;
 use std::path::Path;
 
 /// A crate to test.
