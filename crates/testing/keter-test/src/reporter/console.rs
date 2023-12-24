@@ -1,7 +1,7 @@
 // MIT/Apache2
 
 use super::Reporter;
-use crate::{TestEvent, TestStatus, TestResult};
+use crate::{TestEvent, TestResult, TestStatus};
 
 use owo_colors::OwoColorize;
 use std::borrow::Cow;
@@ -67,7 +67,9 @@ impl Reporter for ConsoleReporter {
 
                 self.indent += 1;
             }
-            TestEvent::EndGroup(_name) => {}
+            TestEvent::EndGroup(_name) => {
+                self.indent -= 1;
+            }
             TestEvent::Result(TestResult {
                 name,
                 status,

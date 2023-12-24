@@ -4,3 +4,6 @@ members = [ "winit",
     "winit-wayland",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+keter-test = { path = "crates/testing/keter-test" }
