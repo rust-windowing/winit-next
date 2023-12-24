@@ -2,9 +2,41 @@
 
 mod command;
 mod style;
+mod util;
 
 use color_eyre::eyre::eyre;
+use serde::{Deserialize, Serialize};
+
+use std::borrow::Cow;
 use std::path::Path;
+
+/// A crate to test.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Crate {
+    /// Crate name to test.
+    pub name: String,
+
+    /// Checks to run.
+    pub checks: Vec<Check>,
+}
+
+/// Check to run for a crate.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Check {
+    /// The target triple to test.
+    #[serde(rename = "target")]
+    pub target_triple: String,
+
+    /// Host environment to set up.
+    pub host_env: Option<String>,
+
+    /// Features to enable.
+    pub features: Option<Vec<String>>,
+
+    /// Turn off default features.
+    #[serde(default)]
+    pub no_default_features: bool,
+}
 
 /// Test type to run.
 pub enum Test {
@@ -20,14 +52,14 @@ pub enum Test {
 
 impl Test {
     /// Run this test.
-    pub async fn run(self) -> color_eyre::Result<()> {
+    pub async fn run(self, crates: Vec<Crate>) -> color_eyre::Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .nth(3)
             .ok_or_else(|| eyre!("this cargo package is at an invalid path"))?;
 
         match self {
-            Self::Style => style::style(root).await?,
+            Self::Style => util::run(style::style(root, crates)).await?,
             _ => todo!(),
         }
 
