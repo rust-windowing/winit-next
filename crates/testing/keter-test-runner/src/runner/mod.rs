@@ -2,6 +2,7 @@
 
 mod command;
 mod environment;
+mod functionality;
 mod style;
 mod util;
 
@@ -9,6 +10,8 @@ use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 
 use std::path::Path;
+
+use self::functionality::functionality;
 
 /// A crate to test.
 #[derive(Serialize, Deserialize, Debug)]
@@ -60,6 +63,7 @@ impl Test {
 
         match self {
             Self::Style => util::run(style::style(root, crates)).await?,
+            Self::Functionality => util::run(functionality::functionality(root, crates)).await?,
             _ => todo!(),
         }
 

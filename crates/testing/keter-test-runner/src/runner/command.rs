@@ -1,9 +1,9 @@
 // MIT/Apache2 License
 
+use super::environment::{Environment, RunCommand};
 use super::util::spawn;
 use super::{Check, Crate};
 
-use async_process::{Command, Stdio};
 use color_eyre::eyre::{eyre, Result};
 use tracing::Instrument;
 
@@ -11,19 +11,67 @@ use futures_lite::io::BufReader;
 use futures_lite::prelude::*;
 
 use std::env;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::time::Duration;
+
+/// A command to run.
+pub(crate) struct Command {
+    /// The command to run.
+    command: OsString,
+
+    /// Arguments for the command.
+    args: Vec<OsString>,
+}
+
+impl Command {
+    /// Create a new command.
+    pub(crate) fn new(command: impl AsRef<OsStr>) -> Self {
+        Self {
+            command: command.as_ref().to_os_string(),
+            args: vec![],
+        }
+    }
+
+    /// Add an argument to this command.
+    #[inline]
+    pub(crate) fn arg(&mut self, arg: impl AsRef<OsStr>) -> &mut Self {
+        self.args.push(arg.as_ref().to_os_string());
+        self
+    }
+
+    /// Add several arguments to this command.
+    #[inline]
+    pub(crate) fn args<S: AsRef<OsStr>>(&mut self, args: impl IntoIterator<Item = S>) -> &mut Self {
+        let mut args = args.into_iter();
+        let (lo, _) = args.size_hint();
+
+        self.args.reserve(lo);
+        for arg in args {
+            self.args.push(arg.as_ref().to_os_string());
+        }
+
+        self
+    }
+
+    /// Run this command on a host environment.
+    pub(crate) fn spawn<E: Environment>(&mut self, mut host: E) -> Result<E::Command> {
+        let args = self.args.iter().map(|arg| &**arg).collect::<Vec<_>>();
+        host.run_command(&self.command, args.as_slice())
+    }
+}
 
 /// Run a command to completion.
 #[inline]
-pub async fn run(name: &str, cmd: &mut Command, timeout: Option<Duration>) -> Result<()> {
-    // Spawn the command.
-    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-    drop(child.stdin.take());
+pub async fn run(
+    name: &str,
+    mut child: impl RunCommand + Send + 'static,
+    timeout: Option<Duration>,
+) -> Result<()> {
+    drop(child.stdin());
 
     // Spawn a task to emit stdout to tracing.
     let run_stdout = spawn({
-        let stdout = child.stdout.take();
+        let stdout = child.stdout();
         let span = tracing::trace_span!("stdout", name);
         async move {
             if let Some(stdout) = stdout {
@@ -49,7 +97,7 @@ pub async fn run(name: &str, cmd: &mut Command, timeout: Option<Duration>) -> Re
 
     // Spawn a task to emit stderr to info.
     let run_stderr = spawn({
-        let stderr = child.stderr.take();
+        let stderr = child.stderr();
         let span = tracing::info_span!("stderr", name);
         async move {
             if let Some(stderr) = stderr {
@@ -77,15 +125,7 @@ pub async fn run(name: &str, cmd: &mut Command, timeout: Option<Duration>) -> Re
     let status = spawn({
         let name = name.to_string();
         let span = tracing::info_span!("status", name);
-        async move {
-            let status = child.status().await?;
-            if status.success() {
-                Ok(())
-            } else {
-                Err(eyre!("child {name} exited with status {status:?}"))
-            }
-        }
-        .instrument(span)
+        async move { child.exit().await }.instrument(span)
     });
 
     // Use a future to time out.

@@ -49,3 +49,8 @@ esac
 
 # Always run style tests.
 test_runner style --config "$config_path"
+
+# At level 1 or higher, run functionality tests.
+if [ "$level" -gt 1 ]; then
+  test_runner functionality --config "$config_path"
+fi

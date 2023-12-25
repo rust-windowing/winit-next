@@ -15,12 +15,16 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::pin::Pin;
 
+pub(crate) use host::CurrentHost;
+
 /// Choose an environment to run inside of.
-pub(crate) fn choose_environment(check: &Check) -> Result<DynEnvironment> {
+pub(crate) async fn choose_environment(root: &Path, check: &Check) -> Result<DynEnvironment> {
     // TODO: Other environments.
     let _ = check;
     tracing::info!("choosing to run on host operating system");
-    Ok(DynEnvironment::from_environment(host::CurrentHost::new()))
+    Ok(DynEnvironment::from_environment(CurrentHost::new(
+        root.to_path_buf(),
+    )))
 }
 
 /// Host environment to run commands in.
@@ -29,7 +33,16 @@ pub(crate) trait Environment {
     type Command: RunCommand + Send + 'static;
 
     /// Run a command.
-    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr], pwd: &Path) -> Result<Self::Command>;
+    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command>;
+}
+
+impl<E: Environment + ?Sized> Environment for &mut E {
+    type Command = E::Command;
+
+    #[inline]
+    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+        (**self).run_command(cmd, args)
+    }
 }
 
 /// A command to run.
@@ -74,13 +87,8 @@ impl DynEnvironment {
             type Command = Box<dyn RunCommand + Send + 'static>;
 
             #[inline]
-            fn run_command(
-                &mut self,
-                cmd: &OsStr,
-                args: &[&OsStr],
-                pwd: &Path,
-            ) -> Result<Self::Command> {
-                let cmd = self.0.run_command(cmd, args, pwd)?;
+            fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+                let cmd = self.0.run_command(cmd, args)?;
                 Ok(Box::new(cmd))
             }
         }
@@ -95,7 +103,7 @@ impl Environment for DynEnvironment {
     type Command = Box<dyn RunCommand + Send + 'static>;
 
     #[inline]
-    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr], pwd: &Path) -> Result<Self::Command> {
-        self.inner.run_command(cmd, args, pwd)
+    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+        self.inner.run_command(cmd, args)
     }
 }

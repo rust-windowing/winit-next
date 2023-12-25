@@ -1,6 +1,7 @@
 // MIT/Apache2 License
 
 use crate::runner::command::{cargo_for_crate, run, rustfmt};
+use crate::runner::environment::{CurrentHost, Environment};
 use crate::runner::util::spawn;
 use crate::runner::Crate;
 
@@ -58,15 +59,15 @@ pub async fn style(root: &Path, crates: Vec<Crate>) -> Result<()> {
 async fn rust_fmt(root: &Path) -> Result<()> {
     // Get all of the Rust files.
     let mut rust_files = files_with_extensions(root, "rs");
+    let host = CurrentHost::new(root.to_path_buf());
 
     // Create a command to run rustfmt.
     let mut fmt = rustfmt()?;
     fmt.args(["--edition", "2021", "--check"]);
-    fmt.current_dir(root);
     while let Some(rust_file) = rust_files.next().await {
         fmt.arg(rust_file?);
     }
-    run("rustfmt", &mut fmt, Some(FMT_TIMEOUT)).await?;
+    run("rustfmt", fmt.spawn(host)?, Some(FMT_TIMEOUT)).await?;
 
     Ok(())
 }
@@ -78,10 +79,13 @@ async fn rust_clippy(root: &Path, crates: &[Crate]) -> Result<()> {
             .iter()
             .flat_map(|crate_| cargo_for_crate(&["clippy"], crate_)),
     )
-    .then(|command| async move {
-        match command {
-            Ok(mut command) => run("clippy", command.current_dir(root), Some(CLIPPY_TIMEOUT)).await,
-            Err(err) => Err(err),
+    .then({
+        move |command| async move {
+            let host = CurrentHost::new(root.to_path_buf());
+            match command {
+                Ok(mut command) => run("clippy", command.spawn(host)?, Some(CLIPPY_TIMEOUT)).await,
+                Err(err) => Err(err),
+            }
         }
     });
     futures_lite::pin!(command_runner);

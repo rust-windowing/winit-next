@@ -28,6 +28,10 @@ async fn entry(matches: clap::ArgMatches) -> Result<()> {
             let crates = read_config(matches.get_one::<String>("config").unwrap()).await?;
             runner::Test::Style.run(crates).await?;
         }
+        Some(("functionality", matches)) => {
+            let crates = read_config(matches.get_one::<String>("config").unwrap()).await?;
+            runner::Test::Functionality.run(crates).await?;
+        }
         Some((subcommand, _matches)) => bail!("unknown subcommand {subcommand}"),
     }
 
@@ -41,12 +45,21 @@ async fn read_config(path: impl AsRef<Path>) -> Result<Vec<runner::Crate>> {
 }
 
 fn cli() -> clap::Command {
-    clap::Command::new("keter-test-runner").subcommand(
-        clap::Command::new("style").arg(
-            clap::Arg::new("config")
-                .required(true)
-                .short('c')
-                .long("config"),
-        ),
-    )
+    clap::Command::new("keter-test-runner")
+        .subcommand(
+            clap::Command::new("style").arg(
+                clap::Arg::new("config")
+                    .required(true)
+                    .short('c')
+                    .long("config"),
+            ),
+        )
+        .subcommand(
+            clap::Command::new("functionality").arg(
+                clap::Arg::new("config")
+                    .required(true)
+                    .short('c')
+                    .long("config"),
+            ),
+        )
 }
