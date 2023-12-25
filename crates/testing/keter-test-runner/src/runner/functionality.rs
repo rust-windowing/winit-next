@@ -22,7 +22,7 @@ pub async fn functionality(root: &Path, crates: Vec<Crate>) -> Result<()> {
             // Choose an environment for this check.
             let mut host = choose_environment(root, check).await?;
 
-            for mode in ["--tests", "--docs"] {
+            for mode in ["--tests", "--doc"] {
                 // Run the cargo command.
                 let mut command = cargo_for_check(&["test", mode], &crate_, check)?;
                 run(

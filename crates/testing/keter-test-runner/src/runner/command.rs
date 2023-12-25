@@ -82,6 +82,7 @@ pub async fn run(
                     if buffer.is_empty() {
                         break;
                     }
+                    buffer.pop();
                     tracing::trace!("+ {buffer}");
                     buffer.clear();
                 }
@@ -108,6 +109,7 @@ pub async fn run(
                     if buffer.is_empty() {
                         break;
                     }
+                    buffer.pop();
                     tracing::info!("+ {buffer}");
                     buffer.clear();
                 }
