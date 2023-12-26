@@ -36,10 +36,10 @@ test_runner() {
 basedir="$(dirname -- "$(dirname -- "$0")")"
 cd "$basedir" || exit 1
 
-config_path="$basedir/ci/tests_linux.json"
+config_path="${1:-basedir/ci/tests_linux.json}"
 
 # Tell which level of test we're running.
-case "${1:-2}" in
+case "${2:-2}" in
   0) info "running level 0 (style) tests"; level=0 ;;
   1) info "running level 1 (function) tests"; level=1 ;;
   2) info "running level 2 (host) tests"; level=2 ;;

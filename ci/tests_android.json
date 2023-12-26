@@ -1,0 +1,10 @@
+[
+    {
+        "name": "keter-reactor",
+        "checks": [
+            {
+                "target": "x86_64-linux-android"
+            }
+        ] 
+    }
+]

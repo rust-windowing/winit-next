@@ -23,7 +23,6 @@ const DEFAULT_TCP_CONNECT_TIMEOUT: u64 = 15;
 
 /// The event of a test.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type")]
 pub enum TestEvent {
     /// There are no more tests.
     End {
@@ -171,19 +170,22 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
                 {
                     if let Ok(path) = env::var("KETER_TEST_UDS_SOCKET") {
                         break Box::new(
-                            future::block_on(
-                                reporter::StreamReporter::connect(
-                                    async_net::unix::UnixStream::connect(path),
-                                    Duration::from_secs(
-                                        env::var("KETER_TEST_UDS_TIMEOUT")
-                                            .ok()
-                                            .and_then(|timeout| timeout.parse::<u64>().ok())
-                                            .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT)
-                                    )
-                                )
-                            ).expect("failed to connect to Unix socket")
+                            future::block_on(reporter::StreamReporter::connect(
+                                async_net::unix::UnixStream::connect(path),
+                                Duration::from_secs(
+                                    env::var("KETER_TEST_UDS_TIMEOUT")
+                                        .ok()
+                                        .and_then(|timeout| timeout.parse::<u64>().ok())
+                                        .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT),
+                                ),
+                            ))
+                            .expect("failed to connect to Unix socket"),
                         );
                     }
+                }
+
+                if cfg!(target_os = "android") {
+                    break Box::new(reporter::DumpReporter::new());
                 }
 
                 // By default, use the console reporter.
@@ -209,9 +211,7 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
 
     // Finish with an exit code.
     let code = reporter.finish();
-    if code != 0 {
-        std::process::exit(code);
-    }
+    std::process::exit(code);
 
     value
 }
@@ -249,10 +249,7 @@ pub async fn run_tcp_listener(
         addr.cyan().bold()
     );
 
-    run_over_stream(
-        socket,
-        reporter
-    ).await
+    run_over_stream(socket, reporter).await
 }
 
 /// Drive a Unix listener at the specified path.
@@ -265,8 +262,7 @@ pub async fn run_unix_listener(
     use async_net::unix::UnixListener;
 
     // Bind to a listening port.
-    let listener =
-        UnixListener::bind(path)?;
+    let listener = UnixListener::bind(path)?;
 
     // Wait for the client to connect.
     println!(
@@ -291,10 +287,7 @@ pub async fn run_unix_listener(
         addr.cyan().bold()
     );
 
-    run_over_stream(
-        socket,
-        reporter
-    ).await
+    run_over_stream(socket, reporter).await
 }
 
 #[inline]

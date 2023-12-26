@@ -8,10 +8,12 @@ use std::future::Future;
 use std::pin::Pin;
 
 mod console;
+mod dump;
 mod writer;
 
 pub use console::ConsoleReporter;
-pub use writer::StreamReporter; 
+pub use dump::DumpReporter;
+pub use writer::StreamReporter;
 
 /// Something that receives test results.
 pub trait Reporter {

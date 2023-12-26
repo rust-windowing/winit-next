@@ -1,7 +1,6 @@
 // MIT/Apache2 License
 
 /// Implements the `Reporter` trait around something that can asynchronously write.
-
 use super::Reporter;
 use crate::{TestEvent, TestResult, TestStatus};
 
@@ -32,7 +31,10 @@ impl<S> StreamReporter<S> {
         };
 
         let socket = stream.or(timeout).await?;
-        Ok(Self { socket, exit_code: 0, })
+        Ok(Self {
+            socket,
+            exit_code: 0,
+        })
     }
 }
 
@@ -45,7 +47,8 @@ impl<S: AsyncWrite + Send + Unpin> Reporter for StreamReporter<S> {
             if let TestEvent::Result(TestResult {
                 status: TestStatus::Failed,
                 ..
-            }) = &test {
+            }) = &test
+            {
                 self.exit_code = 1;
             }
 
@@ -66,4 +69,3 @@ impl<S: AsyncWrite + Send + Unpin> Reporter for StreamReporter<S> {
         0
     }
 }
-
