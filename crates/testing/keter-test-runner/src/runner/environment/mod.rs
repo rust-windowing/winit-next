@@ -6,6 +6,7 @@
 
 mod android;
 mod choose;
+mod docker;
 mod host;
 
 use crate::runner::Check;

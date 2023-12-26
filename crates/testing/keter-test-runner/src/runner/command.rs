@@ -165,6 +165,12 @@ pub fn cargo() -> Result<Command> {
     command_with_env("CARGO", "cargo")
 }
 
+/// `docker`
+#[inline]
+pub fn docker() -> Result<Command> {
+    command_with_env("DOCKER", "docker")
+}
+
 /// `cargo` for a specific `Crate` and `Check`.
 #[inline]
 pub fn cargo_for_check(subcommands: &[&str], crate_: &Crate, check: &Check) -> Result<Command> {
