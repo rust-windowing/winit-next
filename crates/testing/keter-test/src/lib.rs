@@ -144,6 +144,7 @@ impl TestHarness {
 }
 
 /// Run tests with a harness.
+#[allow(clippy::never_loop)]
 pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     // Set up hooks.
     tracing_subscriber::fmt::try_init().ok();
@@ -153,8 +154,8 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
     let reporter: Box<dyn reporter::Reporter + Send> =
         if let Ok(address) = env::var("KETER_TEST_TCP_ADDRESS") {
             Box::new(
-                future::block_on(reporter::TcpReporter::connect(
-                    address,
+                future::block_on(reporter::StreamReporter::connect(
+                    async_net::TcpStream::connect(address),
                     Duration::from_secs(
                         env::var("KETER_TEST_TCP_TIMEOUT")
                             .ok()
@@ -165,7 +166,29 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
                 .expect("failed to connect to TCP port"),
             )
         } else {
-            Box::new(reporter::ConsoleReporter::new())
+            loop {
+                #[cfg(unix)]
+                {
+                    if let Ok(path) = env::var("KETER_TEST_UDS_SOCKET") {
+                        break Box::new(
+                            future::block_on(
+                                reporter::StreamReporter::connect(
+                                    async_net::unix::UnixStream::connect(path),
+                                    Duration::from_secs(
+                                        env::var("KETER_TEST_UDS_TIMEOUT")
+                                            .ok()
+                                            .and_then(|timeout| timeout.parse::<u64>().ok())
+                                            .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT)
+                                    )
+                                )
+                            ).expect("failed to connect to Unix socket")
+                        );
+                    }
+                }
+
+                // By default, use the console reporter.
+                break Box::new(reporter::ConsoleReporter::new());
+            }
         };
 
     // Create our test harness.
@@ -211,13 +234,14 @@ pub async fn run_tcp_listener(
         ", waiting for connection...".white().italic()
     );
     once_ready.send(()).await.ok();
-    let (mut socket, addr) = async { listener.accept().await }
+    let (socket, addr) = async { listener.accept().await }
         .or(async {
             // Five-minute timeout.
             async_io::Timer::after(Duration::from_secs(60 * 5)).await;
             Err(io::ErrorKind::TimedOut.into())
         })
         .await?;
+    drop(listener);
 
     println!(
         "{}{:?}",
@@ -225,6 +249,59 @@ pub async fn run_tcp_listener(
         addr.cyan().bold()
     );
 
+    run_over_stream(
+        socket,
+        reporter
+    ).await
+}
+
+/// Drive a Unix listener at the specified path.
+#[cfg(unix)]
+pub async fn run_unix_listener(
+    path: &std::path::Path,
+    reporter: impl Reporter + Send + 'static,
+    once_ready: Sender<()>,
+) -> io::Result<()> {
+    use async_net::unix::UnixListener;
+
+    // Bind to a listening port.
+    let listener =
+        UnixListener::bind(path)?;
+
+    // Wait for the client to connect.
+    println!(
+        "{} {:?}{}",
+        "listening at".white().italic(),
+        listener.local_addr()?.cyan().bold(),
+        ", waiting for connection...".white().italic()
+    );
+    once_ready.send(()).await.ok();
+    let (socket, addr) = async { listener.accept().await }
+        .or(async {
+            // Five-minute timeout.
+            async_io::Timer::after(Duration::from_secs(60 * 5)).await;
+            Err(io::ErrorKind::TimedOut.into())
+        })
+        .await?;
+    drop(listener);
+
+    println!(
+        "{}{:?}",
+        "got connection at address ".white().italic(),
+        addr.cyan().bold()
+    );
+
+    run_over_stream(
+        socket,
+        reporter
+    ).await
+}
+
+#[inline]
+async fn run_over_stream(
+    mut socket: impl futures_lite::AsyncRead + Send + Unpin,
+    reporter: impl Reporter + Send + 'static,
+) -> io::Result<()> {
     // Start reading from the socket.
     let mut buf = Vec::with_capacity(4096);
     let reporter = Mutex::new(reporter);

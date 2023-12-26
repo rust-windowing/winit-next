@@ -1,44 +1,54 @@
 // MIT/Apache2 License
 
-use super::Reporter;
-use crate::TestEvent;
+/// Implements the `Reporter` trait around something that can asynchronously write.
 
-use async_net::TcpStream;
+use super::Reporter;
+use crate::{TestEvent, TestResult, TestStatus};
+
 use futures_lite::prelude::*;
 
 use std::io;
 use std::time::Duration;
 
-/// A reporter that runs over a TCP stream.
-pub struct TcpReporter {
+/// A reporter that runs over a stream.
+pub struct StreamReporter<S> {
+    /// Current exit code.
+    exit_code: i32,
+
     /// TCP stream to send data over.
-    socket: TcpStream,
+    socket: S,
 }
 
-impl TcpReporter {
+impl<S> StreamReporter<S> {
     /// Connect to the given address.
     #[inline]
     pub async fn connect(
-        addr: impl async_net::AsyncToSocketAddrs,
+        stream: impl Future<Output = io::Result<S>>,
         timeout: Duration,
     ) -> io::Result<Self> {
-        let result = async move { TcpStream::connect(addr).await };
         let timeout = async move {
             async_io::Timer::after(timeout).await;
             Err(io::ErrorKind::TimedOut.into())
         };
 
-        let socket = result.or(timeout).await?;
-        Ok(Self { socket })
+        let socket = stream.or(timeout).await?;
+        Ok(Self { socket, exit_code: 0, })
     }
 }
 
-impl Reporter for TcpReporter {
+impl<S: AsyncWrite + Send + Unpin> Reporter for StreamReporter<S> {
     fn report(
         &mut self,
         test: TestEvent,
     ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
+            if let TestEvent::Result(TestResult {
+                status: TestStatus::Failed,
+                ..
+            }) = &test {
+                self.exit_code = 1;
+            }
+
             // The format is the JSON bytes preceded by the number of bytes expected.
             let mut bytes = serde_json::to_vec(&test).expect("failed to serialize TestEvent");
             let count = bytes.len() as u64;
@@ -56,3 +66,4 @@ impl Reporter for TcpReporter {
         0
     }
 }
+
