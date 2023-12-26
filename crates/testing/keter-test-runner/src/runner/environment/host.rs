@@ -26,8 +26,8 @@ impl CurrentHost {
 impl Environment for CurrentHost {
     type Command = Child;
 
-    fn run_command(&mut self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
-        let mut child = Command::new(cmd)
+    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+        let child = Command::new(cmd)
             .args(args)
             .current_dir(&self.root)
             .stdout(Stdio::piped())
@@ -36,6 +36,10 @@ impl Environment for CurrentHost {
             .spawn()?;
 
         Ok(child)
+    }
+
+    fn cleanup(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>> {
+        Box::pin(std::future::ready(Ok(())))
     }
 }
 
