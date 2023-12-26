@@ -11,8 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use std::path::Path;
 
-use self::functionality::functionality;
-
 /// A crate to test.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Crate {
@@ -61,12 +59,14 @@ impl Test {
             .nth(3)
             .ok_or_else(|| eyre!("this cargo package is at an invalid path"))?;
 
-        match self {
-            Self::Style => util::run(style::style(root, crates)).await?,
-            Self::Functionality => util::run(functionality::functionality(root, crates)).await?,
+        let result = match self {
+            Self::Style => util::run(style::style(root, crates)).await,
+            Self::Functionality => util::run(functionality::functionality(root, crates)).await,
             _ => todo!(),
-        }
+        };
 
-        Ok(())
+        environment::cleanup_hosts().await?;
+
+        result
     }
 }

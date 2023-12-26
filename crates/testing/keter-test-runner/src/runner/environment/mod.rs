@@ -4,6 +4,7 @@
 //!
 //! This allows the test runner to issue commands to another system.
 
+mod android;
 mod choose;
 mod host;
 
@@ -18,7 +19,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::pin::Pin;
 
-pub(crate) use choose::choose as choose_environment;
+pub(crate) use choose::{choose as choose_environment, cleanup as cleanup_hosts};
 pub(crate) use host::CurrentHost;
 
 /// Host environment to run commands in.

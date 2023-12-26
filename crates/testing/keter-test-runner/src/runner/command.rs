@@ -153,6 +153,12 @@ pub fn rustfmt() -> Result<Command> {
     command_with_env("RUSTFMT", "rustfmt")
 }
 
+/// `rustc`
+#[inline]
+pub fn rustc() -> Result<Command> {
+    command_with_env("RUSTC", "rustc")
+}
+
 /// `cargo`
 #[inline]
 pub fn cargo() -> Result<Command> {
