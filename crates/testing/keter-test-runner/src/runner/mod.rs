@@ -4,6 +4,7 @@ mod command;
 mod environment;
 mod functionality;
 mod style;
+mod tests;
 mod util;
 
 use color_eyre::eyre::eyre;
@@ -37,6 +38,10 @@ pub struct Check {
     /// Turn off default features.
     #[serde(default)]
     pub no_default_features: bool,
+
+    /// Whether this test should be ignored in the general CI case.
+    #[serde(default)]
+    pub niche: bool,
 }
 
 /// Test type to run.
@@ -62,7 +67,7 @@ impl Test {
         let result = match self {
             Self::Style => util::run(style::style(root, crates)).await,
             Self::Functionality => util::run(functionality::functionality(root, crates)).await,
-            _ => todo!(),
+            Self::Host => util::run(tests::tests(root, crates)).await
         };
 
         environment::cleanup_hosts().await?;

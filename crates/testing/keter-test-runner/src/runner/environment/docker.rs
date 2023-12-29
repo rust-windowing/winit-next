@@ -5,13 +5,14 @@
 //! Useful for Linux/Windows tests on the same architecture.
 
 use async_process::Child;
-use color_eyre::eyre::{bail, eyre, Result};
+use color_eyre::eyre::{bail, eyre, Result, WrapErr};
 
 use futures_lite::io::BufReader;
 use futures_lite::prelude::*;
 
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use crate::runner::command::{docker, run};
 use crate::runner::environment::{CurrentHost, Environment, RunCommand};
@@ -41,25 +42,54 @@ impl DockerEnvironment {
 
         // Start the docker container.
         let mut child = docker()?
+            .arg("run")
             .arg("--detach")
             .args(["--volume", &format!("{root}:{root}")])
             .args(["--workdir", root])
             .arg(get_target_container(target_triple, options)?)
-            .spawn(&host)?;
+            .args(["sh", "-c", "tail -f /dev/null"])
+            .spawn(&host)
+            .context("while spawning initial docker")?;
 
         // Read stdout to get the container ID.
         let container_id = {
             let mut stdout = child.stdout.take().unwrap();
+            let stderr = child.stderr.take().unwrap();
             let mut buf = String::new();
 
             // Read to end and then wait for finish.
             let docker_runner = spawn(async move { child.exit().await });
-            stdout.read_to_string(&mut buf).await?;
-            docker_runner.await?;
+            let stderr_runner = spawn(async move {
+                let mut line = String::new();
+                let mut stderr = BufReader::new(stderr);
+                while stderr.read_line(&mut line).await.is_ok() {
+                    line.pop();
+                    if line.is_empty() {
+                        break;
+                    }
+                    tracing::info!("docker stderr: {line}");
+                }
+            });
+            stdout
+                .read_to_string(&mut buf)
+                .await
+                .context("while reading from Docker daemon")?;
+            docker_runner
+                .await
+                .context("while waiting for docker runner exit")?;
+            stderr_runner.cancel().await;
+
+            if buf.ends_with('\n') {
+                buf.pop();
+            }
+            tracing::info!("running container: {buf}");
 
             // Buffer should contain the container ID.
             buf
         };
+
+        // Wait for a second for the Docker container to start running.
+        async_io::Timer::after(Duration::from_millis(100)).await;
 
         Ok(Self {
             host,
@@ -80,18 +110,25 @@ impl Environment for DockerEnvironment {
                 docker()?
                     .arg("stop")
                     .arg(&self.docker_id)
-                    .spawn(&self.host)?,
+                    .spawn(&self.host)
+                    .context("while spawning docker stop")?,
                 None,
             )
-            .await?;
+            .await
+            .context("while running docker stop")?;
 
             // Clean up the Docker container.
             run(
                 "docker rm",
-                docker()?.arg("rm").arg(&self.docker_id).spawn(&self.host)?,
+                docker()?
+                    .arg("rm")
+                    .arg(&self.docker_id)
+                    .spawn(&self.host)
+                    .context("while spawning docker rm")?,
                 None,
             )
-            .await?;
+            .await
+            .context("while spawning docker rm")?;
 
             Ok(())
         })
@@ -99,10 +136,48 @@ impl Environment for DockerEnvironment {
 
     #[inline]
     fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
-        todo!()
+        let mut sh_command = Path::new(cmd)
+            .file_name()
+            .ok_or_else(|| eyre!("no file name for command"))?
+            .to_str()
+            .ok_or_else(|| eyre!("cmd was not valid utf-8"))?
+            .to_string();
+        for arg in args {
+            let arg = arg
+                .to_str()
+                .ok_or_else(|| eyre!("arg was not valid utf-8"))?;
+
+            sh_command.push(' ');
+            sh_command.push_str(arg);
+        }
+
+        tracing::info!("docker exec with command: {sh_command}");
+
+        let child = docker()?
+            .arg("exec")
+            .arg(&self.docker_id)
+            .arg("sh")
+            .arg("-c")
+            .arg(sh_command)
+            .spawn(&self.host)
+            .context("while spawning docker exec")?;
+
+        Ok(child)
     }
 }
 
 fn get_target_container(target_triple: &str, options: Option<&str>) -> Result<String> {
-    bail!("no known container for target triple {target_triple} and options {options:?}")
+    let tag = if target_triple.contains("linux") && target_triple.ends_with("gnu") {
+        // TODO: Fedora, alpine, etc etc
+        "ubuntu"
+    } else {
+        bail!("no tag for target triple {target_triple}")
+    };
+
+    // TODO: Modified images for host options.
+    if options.is_some() {
+        bail!("cannot handle options yet");
+    }
+
+    Ok(format!("ghcr.io/notgull/keter:{tag}"))
 }

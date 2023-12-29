@@ -4,7 +4,7 @@ use super::environment::{Environment, RunCommand};
 use super::util::spawn;
 use super::{Check, Crate};
 
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{eyre, Result, WrapErr};
 use tracing::Instrument;
 
 use futures_lite::io::BufReader;
@@ -138,7 +138,10 @@ pub async fn run(
         Err(eyre!("child {name} timed out"))
     };
 
-    let result = status.or(timeout).await;
+    let result = status
+        .or(timeout)
+        .await
+        .with_context(|| format!("while running command: {name}"));
 
     // Cancel the other two tasks.
     run_stdout.cancel().await;

@@ -7,9 +7,11 @@
 use super::{CurrentHost, Environment};
 
 use async_process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
+use color_eyre::eyre::Result;
 use once_cell::sync::OnceCell;
 
 use std::ffi::OsStr;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -42,6 +44,11 @@ impl AndroidEnvironment {
             host: CurrentHost::new(root),
         }
     }
+
+    #[inline]
+    async fn setup_android_emulator(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl Environment for AndroidEnvironment {
@@ -49,7 +56,7 @@ impl Environment for AndroidEnvironment {
 
     fn cleanup(
         &self,
-    ) -> std::pin::Pin<Box<dyn futures_lite::prelude::Future<Output = eyre::Result<()>> + Send + '_>>
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>
     {
         Box::pin(async move {
             // TODO
@@ -57,7 +64,7 @@ impl Environment for AndroidEnvironment {
         })
     }
 
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> eyre::Result<Self::Command> {
+    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
         // For `cargo test --tests` and `cargo test --doc`, we can't actually run these on Android.
         // Just skip them for now.
         if cmd.to_str().map_or(false, |s| s.ends_with("cargo"))

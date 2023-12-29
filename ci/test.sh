@@ -42,8 +42,7 @@ config_path="${1:-basedir/ci/tests_linux.json}"
 case "${2:-2}" in
   0) info "running level 0 (style) tests"; level=0 ;;
   1) info "running level 1 (function) tests"; level=1 ;;
-  2) info "running level 2 (host) tests"; level=2 ;;
-  3) info "running level 3 (cross) tests"; level=3 ;;
+  2) info "running level 2 (full) tests"; level=2 ;;
   *) bail "unknown test level $1" ;;
 esac
 
@@ -53,4 +52,9 @@ test_runner style --config "$config_path"
 # At level 1 or higher, run functionality tests.
 if [ "$level" -gt 1 ]; then
   test_runner functionality --config "$config_path"
+fi
+
+# At level 2 or higher, run full tests.
+if [ "$level" -gt 2 ]; then
+  test_runner full --config "$config_path"
 fi

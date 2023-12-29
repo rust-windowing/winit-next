@@ -8,7 +8,7 @@ use crate::runner::command::{cargo_for_check, run};
 use crate::runner::environment::{choose_environment, Environment};
 use crate::runner::Crate;
 
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, WrapErr};
 
 use std::path::Path;
 use std::time::Duration;
@@ -20,7 +20,9 @@ pub async fn functionality(root: &Path, crates: Vec<Crate>) -> Result<()> {
     for crate_ in crates {
         for check in &crate_.checks {
             // Choose an environment for this check.
-            let host = choose_environment(root, check).await?;
+            let host = choose_environment(root, check)
+                .await
+                .context("while choosing environment")?;
 
             for mode in ["--tests", "--doc"] {
                 // Run the cargo command.
@@ -30,7 +32,8 @@ pub async fn functionality(root: &Path, crates: Vec<Crate>) -> Result<()> {
                     command.spawn(&*host)?,
                     Some(FUNCTEST_TIMEOUT),
                 )
-                .await?;
+                .await
+                .with_context(|| format!("while running cargo test {mode}"))?;
             }
         }
     }

@@ -17,7 +17,7 @@ fn main() {
 
     // Run the main function.
     if let Err(e) = async_io::block_on(entry(matches)) {
-        println!("{}{}", "encountered a fatal error: ".red().bold(), e);
+        println!("{}{:?}", "encountered a fatal error: ".red().bold(), e);
     }
 }
 

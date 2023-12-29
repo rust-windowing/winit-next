@@ -57,6 +57,23 @@ pub(crate) async fn choose(root: &Path, check: &Check) -> Result<Arc<DynEnvironm
             break DynEnvironment::from_environment(host);
         }
 
+        // On Windows/Linux hosts, Linux targets that aren't Android can use Docker.
+        if (host_target.contains("windows") || host_target.contains("linux"))
+            && check.target_triple.contains("linux")
+            && !check.target_triple.contains("android")
+        {
+            // It will only work for the same architecture, though.
+            if host_target.split('-').next() == check.target_triple.split('-').next() {
+                let host = super::docker::DockerEnvironment::start(
+                    root.to_path_buf(),
+                    &check.target_triple,
+                    check.host_env.as_deref(),
+                )
+                .await?;
+                break DynEnvironment::from_environment(host);
+            }
+        }
+
         bail!(
             "cannot find compatible environment for host {host_target} and target {}",
             &check.target_triple
