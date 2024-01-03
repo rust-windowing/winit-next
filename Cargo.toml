@@ -1,0 +1,6 @@
+[workspace]
+members = [ "winit",
+    "winit-core", "winit-examples",
+    "winit-wayland",
+]
+resolver = "2"
