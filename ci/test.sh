@@ -50,11 +50,11 @@ esac
 test_runner style --config "$config_path"
 
 # At level 1 or higher, run functionality tests.
-if [ "$level" -gt 1 ]; then
+if [ "$level" -ge 1 ]; then
   test_runner functionality --config "$config_path"
 fi
 
 # At level 2 or higher, run full tests.
-if [ "$level" -gt 2 ]; then
+if [ "$level" -ge 2 ]; then
   test_runner full --config "$config_path"
 fi

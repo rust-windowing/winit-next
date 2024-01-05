@@ -32,6 +32,10 @@ async fn entry(matches: clap::ArgMatches) -> Result<()> {
             let crates = read_config(matches.get_one::<String>("config").unwrap()).await?;
             runner::Test::Functionality.run(crates).await?;
         }
+        Some(("full", matches)) => {
+            let crates = read_config(matches.get_one::<String>("config").unwrap()).await?;
+            runner::Test::Host.run(crates).await?;
+        }
         Some((subcommand, _matches)) => bail!("unknown subcommand {subcommand}"),
     }
 
@@ -56,6 +60,14 @@ fn cli() -> clap::Command {
         )
         .subcommand(
             clap::Command::new("functionality").arg(
+                clap::Arg::new("config")
+                    .required(true)
+                    .short('c')
+                    .long("config"),
+            ),
+        )
+        .subcommand(
+            clap::Command::new("full").arg(
                 clap::Arg::new("config")
                     .required(true)
                     .short('c')

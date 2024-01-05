@@ -162,6 +162,12 @@ pub fn rustc() -> Result<Command> {
     command_with_env("RUSTC", "rustc")
 }
 
+/// `adb`
+#[inline]
+pub fn adb() -> Result<Command> {
+    command_with_env("ADB", "adb")
+}
+
 /// `cargo`
 #[inline]
 pub fn cargo() -> Result<Command> {
@@ -172,6 +178,12 @@ pub fn cargo() -> Result<Command> {
 #[inline]
 pub fn docker() -> Result<Command> {
     command_with_env("DOCKER", "docker")
+}
+
+/// `xbuild`
+#[inline]
+pub fn xbuild() -> Result<Command> {
+    command_with_env("XBUILD", "x")
 }
 
 /// `cargo` for a specific `Crate` and `Check`.

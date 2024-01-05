@@ -67,7 +67,7 @@ impl Test {
         let result = match self {
             Self::Style => util::run(style::style(root, crates)).await,
             Self::Functionality => util::run(functionality::functionality(root, crates)).await,
-            Self::Host => util::run(tests::tests(root, crates)).await
+            Self::Host => util::run(tests::tests(root, crates)).await,
         };
 
         environment::cleanup_hosts().await?;

@@ -27,6 +27,8 @@ impl Environment for CurrentHost {
     type Command = Child;
 
     fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+        tracing::info!("running command {cmd:?} with args {args:?}",);
+
         let child = Command::new(cmd)
             .args(args)
             .current_dir(&self.root)

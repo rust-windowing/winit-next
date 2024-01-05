@@ -167,9 +167,15 @@ impl Environment for DockerEnvironment {
 }
 
 fn get_target_container(target_triple: &str, options: Option<&str>) -> Result<String> {
-    let tag = if target_triple.contains("linux") && target_triple.ends_with("gnu") {
-        // TODO: Fedora, alpine, etc etc
-        "ubuntu"
+    let tag = if target_triple.contains("linux") {
+        if target_triple.ends_with("gnu") {
+            // TODO: Fedora, etc etc
+            "ubuntu"
+        } else if target_triple.ends_with("musl") {
+            "alpine"
+        } else {
+            bail!("unrecognized linux version {target_triple}")
+        }
     } else {
         bail!("no tag for target triple {target_triple}")
     };
