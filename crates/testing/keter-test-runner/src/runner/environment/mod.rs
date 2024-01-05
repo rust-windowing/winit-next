@@ -29,7 +29,12 @@ pub(crate) trait Environment {
     type Command: RunCommand + Send + 'static;
 
     /// Run a command.
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command>;
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command>;
 
     /// Clean up the current environment.
     fn cleanup(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + '_>>;
@@ -39,8 +44,13 @@ impl<E: Environment + ?Sized> Environment for &E {
     type Command = E::Command;
 
     #[inline]
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
-        (**self).run_command(cmd, args)
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command> {
+        (**self).run_command(cmd, args, pwd)
     }
 
     #[inline]
@@ -93,8 +103,13 @@ impl DynEnvironment {
             type Command = Box<dyn RunCommand + Send + 'static>;
 
             #[inline]
-            fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
-                let cmd = self.0.run_command(cmd, args)?;
+            fn run_command(
+                &self,
+                cmd: &OsStr,
+                args: &[&OsStr],
+                pwd: Option<&OsStr>,
+            ) -> Result<Self::Command> {
+                let cmd = self.0.run_command(cmd, args, pwd)?;
                 Ok(Box::new(cmd))
             }
 
@@ -114,8 +129,13 @@ impl Environment for DynEnvironment {
     type Command = Box<dyn RunCommand + Send + 'static>;
 
     #[inline]
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
-        self.inner.run_command(cmd, args)
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command> {
+        self.inner.run_command(cmd, args, pwd)
     }
 
     #[inline]

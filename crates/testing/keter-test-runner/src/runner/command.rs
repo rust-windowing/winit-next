@@ -56,7 +56,7 @@ impl Command {
     /// Run this command on a host environment.
     pub(crate) fn spawn<E: Environment>(&mut self, mut host: E) -> Result<E::Command> {
         let args = self.args.iter().map(|arg| &**arg).collect::<Vec<_>>();
-        host.run_command(&self.command, args.as_slice())
+        host.run_command(&self.command, args.as_slice(), None)
     }
 }
 

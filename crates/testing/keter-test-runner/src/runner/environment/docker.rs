@@ -135,7 +135,13 @@ impl Environment for DockerEnvironment {
     }
 
     #[inline]
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command> {
+        assert!(pwd.is_none());
         let mut sh_command = Path::new(cmd)
             .file_name()
             .ok_or_else(|| eyre!("no file name for command"))?

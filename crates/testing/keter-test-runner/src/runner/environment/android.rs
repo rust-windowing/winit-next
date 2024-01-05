@@ -206,7 +206,13 @@ impl Environment for AndroidEnvironment {
         })
     }
 
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command> {
+        assert!(pwd.is_none());
         let is_cargo = cmd.to_str().map_or(false, |s| s.ends_with("cargo"));
 
         // For `cargo test --tests` and `cargo test --doc`, we can't actually run these on Android.

@@ -26,11 +26,20 @@ impl CurrentHost {
 impl Environment for CurrentHost {
     type Command = Child;
 
-    fn run_command(&self, cmd: &OsStr, args: &[&OsStr]) -> Result<Self::Command> {
+    fn run_command(
+        &self,
+        cmd: &OsStr,
+        args: &[&OsStr],
+        pwd: Option<&OsStr>,
+    ) -> Result<Self::Command> {
         tracing::info!("running command {cmd:?} with args {args:?}",);
 
-        let child = Command::new(cmd)
-            .args(args)
+        let mut command = Command::new(cmd);
+        command.args(args);
+        if let Some(pwd) = pwd {
+            command.current_dir(pwd);
+        }
+        let child = command
             .current_dir(&self.root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
