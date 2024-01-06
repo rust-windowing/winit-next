@@ -5,7 +5,7 @@
 //! This just runs "cargo test" in the proper host environment.
 
 use crate::runner::command::{cargo_for_check, run};
-use crate::runner::environment::{choose_environment};
+use crate::runner::environment::choose_environment;
 use crate::runner::Crate;
 
 use color_eyre::eyre::{Result, WrapErr};

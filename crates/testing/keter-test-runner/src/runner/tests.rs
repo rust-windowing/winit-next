@@ -6,17 +6,13 @@ use crate::runner::command::{cargo, cargo_for_check, run};
 use crate::runner::environment::{choose_environment, CurrentHost, RunCommand};
 use crate::runner::util::spawn;
 
-
 use async_lock::OnceCell;
 use color_eyre::eyre::{eyre, Context, Result};
 use futures_lite::prelude::*;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-
-
-
-use crate::runner::{Crate};
+use crate::runner::Crate;
 
 pub(crate) async fn tests(root: &Path, crates: Vec<Crate>) -> Result<()> {
     for crate_ in crates {

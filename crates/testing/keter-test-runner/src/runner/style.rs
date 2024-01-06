@@ -1,7 +1,7 @@
 // MIT/Apache2 License
 
 use crate::runner::command::{cargo_for_crate, run, rustfmt};
-use crate::runner::environment::{CurrentHost};
+use crate::runner::environment::CurrentHost;
 use crate::runner::util::spawn;
 use crate::runner::Crate;
 

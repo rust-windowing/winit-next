@@ -9,12 +9,8 @@ mod choose;
 mod docker;
 mod host;
 
-
-
 use color_eyre::Result;
 use futures_lite::prelude::*;
-
-
 
 use std::ffi::OsStr;
 

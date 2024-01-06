@@ -4,6 +4,7 @@
 //!
 //! Useful for Linux/Windows tests on the same architecture.
 
+use async_executor::Task;
 use async_process::Child;
 use color_eyre::eyre::{bail, eyre, Result, WrapErr};
 
@@ -12,11 +13,14 @@ use futures_lite::prelude::*;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::runner::command::{docker, run};
 use crate::runner::environment::{CurrentHost, Environment, RunCommand};
 use crate::runner::util::spawn;
+
+const TEST_LISTENER_PATH: &str = "/tmp/keter_test_listener.sock";
 
 /// Run commands in a Docker container.
 pub(crate) struct DockerEnvironment {
@@ -25,6 +29,9 @@ pub(crate) struct DockerEnvironment {
 
     /// The ID of the Docker container.
     docker_id: String,
+
+    /// The running listener task.
+    listener_task: Mutex<Option<Task<()>>>,
 }
 
 impl DockerEnvironment {
@@ -40,11 +47,38 @@ impl DockerEnvironment {
             .to_str()
             .ok_or_else(|| eyre!("cannot have root be a non-UTF8 path for Docker environment"))?;
 
+        // Start a Unix command line listener.
+        let (ready_send, ready_recv) = async_channel::bounded(1);
+        let listener_task = spawn(async move {
+            #[cfg(unix)]
+            {
+                async_fs::remove_file(TEST_LISTENER_PATH).await.ok();
+                if let Err(e) = keter_test::run_unix_listener(
+                    TEST_LISTENER_PATH.as_ref(),
+                    keter_test::reporter::ConsoleReporter::new(),
+                    ready_send,
+                )
+                .await
+                {
+                    tracing::error!("unable to run Unix listener: {e}");
+                }
+            }
+
+            #[cfg(not(unix))]
+            todo!("how to run docker sockets outside of Unix?")
+        });
+        ready_recv.recv().await.ok();
+
         // Start the docker container.
         let mut child = docker()?
             .arg("run")
             .arg("--detach")
             .args(["--volume", &format!("{root}:{root}")])
+            .args(["--volume", &format!("{0}:{0}", TEST_LISTENER_PATH)])
+            .args([
+                "--env",
+                &format!("KETER_TEST_UDS_SOCKET={}", TEST_LISTENER_PATH),
+            ])
             .args(["--workdir", root])
             .arg(get_target_container(target_triple, options)?)
             .args(["sh", "-c", "tail -f /dev/null"])
@@ -94,6 +128,7 @@ impl DockerEnvironment {
         Ok(Self {
             host,
             docker_id: container_id,
+            listener_task: Mutex::new(Some(listener_task)),
         })
     }
 }
@@ -129,6 +164,12 @@ impl Environment for DockerEnvironment {
             )
             .await
             .context("while spawning docker rm")?;
+
+            // Stop the listener.
+            let lt = self.listener_task.lock().unwrap().take();
+            if let Some(lt) = lt {
+                lt.cancel().await;
+            }
 
             Ok(())
         })
