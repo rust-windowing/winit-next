@@ -20,8 +20,8 @@ use futures_lite::prelude::*;
 use std::env;
 use std::ffi::OsStr;
 use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 const ANDROID_DOCKER_IMAGE: &str =

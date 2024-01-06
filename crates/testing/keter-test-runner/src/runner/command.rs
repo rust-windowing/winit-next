@@ -46,7 +46,7 @@ impl Command {
     /// Add several arguments to this command.
     #[inline]
     pub(crate) fn args<S: AsRef<OsStr>>(&mut self, args: impl IntoIterator<Item = S>) -> &mut Self {
-        let mut args = args.into_iter();
+        let args = args.into_iter();
         let (lo, _) = args.size_hint();
 
         self.args.reserve(lo);
@@ -59,13 +59,14 @@ impl Command {
 
     /// Set the working directory for this command.
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn pwd(&mut self, pwd: impl AsRef<OsStr>) -> &mut Self {
         self.pwd = Some(pwd.as_ref().to_os_string());
         self
     }
 
     /// Run this command on a host environment.
-    pub(crate) fn spawn<E: Environment>(&mut self, mut host: E) -> Result<E::Command> {
+    pub(crate) fn spawn<E: Environment>(&mut self, host: E) -> Result<E::Command> {
         let args = self.args.iter().map(|arg| &**arg).collect::<Vec<_>>();
         host.run_command(&self.command, args.as_slice(), self.pwd.as_deref())
     }

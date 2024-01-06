@@ -4,12 +4,12 @@
 
 use super::{Environment, RunCommand};
 
-use async_process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
-use color_eyre::eyre::{bail, eyre, Result};
+use async_process::{Child, Command, Stdio};
+use color_eyre::eyre::{bail, Result};
 use futures_lite::prelude::*;
 
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::pin::Pin;
 
 /// Run commands directly on the current host.

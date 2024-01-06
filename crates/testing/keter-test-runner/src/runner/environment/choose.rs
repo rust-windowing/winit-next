@@ -86,6 +86,7 @@ pub(crate) async fn choose(root: &Path, check: &Check) -> Result<Arc<DynEnvironm
     Ok(host)
 }
 
+#[allow(clippy::await_holding_lock)]
 pub(crate) async fn cleanup() -> Result<()> {
     let mut open_environments = match OPEN_ENVIRONMENTS.get() {
         None => return Ok(()),
