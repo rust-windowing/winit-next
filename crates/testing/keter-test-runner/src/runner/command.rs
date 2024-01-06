@@ -21,6 +21,9 @@ pub(crate) struct Command {
 
     /// Arguments for the command.
     args: Vec<OsString>,
+
+    /// Working directory to use for the command.
+    pwd: Option<OsString>,
 }
 
 impl Command {
@@ -29,6 +32,7 @@ impl Command {
         Self {
             command: command.as_ref().to_os_string(),
             args: vec![],
+            pwd: None
         }
     }
 
@@ -53,10 +57,17 @@ impl Command {
         self
     }
 
+    /// Set the working directory for this command.
+    #[inline]
+    pub(crate) fn pwd(&mut self, pwd: impl AsRef<OsStr>) -> &mut Self {
+        self.pwd = Some(pwd.as_ref().to_os_string());
+        self
+    }
+
     /// Run this command on a host environment.
     pub(crate) fn spawn<E: Environment>(&mut self, mut host: E) -> Result<E::Command> {
         let args = self.args.iter().map(|arg| &**arg).collect::<Vec<_>>();
-        host.run_command(&self.command, args.as_slice(), None)
+        host.run_command(&self.command, args.as_slice(), self.pwd.as_deref())
     }
 }
 
