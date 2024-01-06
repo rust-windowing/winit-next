@@ -11,10 +11,11 @@ use crate::runner::util::spawn;
 
 use async_executor::Task;
 use async_lock::OnceCell;
-use async_process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use color_eyre::eyre::{bail, Context, Result};
-use futures_lite::prelude::*;
 use regex::Regex;
+
+use futures_lite::io::BufReader;
+use futures_lite::prelude::*;
 
 use std::env;
 use std::ffi::OsStr;
@@ -106,15 +107,31 @@ impl AndroidEnvironment {
         async_io::Timer::after(Duration::from_millis(100)).await;
 
         // Initialize ADB connecting to host port 15555 (adb inside the container).
-        run(
-            "adb connect localhost:15555",
-            adb()?
-                .arg("connect")
-                .arg("localhost:15555")
-                .spawn(&*self.host)?,
-            Some(SHORT_COMMAND_TIMEOUT),
-        )
-        .await?;
+        let adb_connect = || async {
+            run(
+                "adb connect localhost:15555",
+                adb()?
+                    .arg("connect")
+                    .arg("localhost:15555")
+                    .spawn(&*self.host)?,
+                Some(SHORT_COMMAND_TIMEOUT),
+            )
+            .await
+        };
+        for i in 0..5 {
+            match adb_connect().await {
+                Ok(()) => break,
+                Err(err) => {
+                    if i == 5 {
+                        return Err(err);
+                    } else {
+                        tracing::error!("adb connect failed, retrying in two seconds...");
+                        async_io::Timer::after(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                }
+            }
+        }
 
         // Wait for the device to come online.
         run(
@@ -237,38 +254,54 @@ impl Environment for AndroidEnvironment {
                 // Spawn a child.
                 let mut xbuild = xbuild()?
                     .arg("run")
-                    .args(["--device", "adb:localhost:5555"])
-                    .args(["--arch", "arm64x"])
+                    .args(["--device", "adb:localhost:15555"])
+                    .args(["--arch", "arm64"])
+                    .args([
+                        "--manifest-path",
+                        "crates/foundation/keter-reactor/keter_tests/general_tests/Cargo.toml",
+                    ])
                     .spawn(&*this.host)?;
 
                 let (line_sender, line_receiver) = async_channel::bounded(1);
 
                 // Take out stdout and stderr and analyze them.
                 let ls = line_sender.clone();
-                let mut stdout = xbuild.stdout.take().unwrap();
+                let mut stdout = BufReader::new(xbuild.stdout.take().unwrap());
                 let stdout = spawn(async move {
                     loop {
                         let mut buf = String::new();
-                        if stdout.read_to_string(&mut buf).await.is_err() {
+                        if stdout.read_line(&mut buf).await.is_err() {
                             break;
                         }
                         if buf.is_empty() {
                             break;
                         }
+
+                        if buf.ends_with('\n') {
+                            buf.pop();
+                        }
+                        tracing::trace!("xbuild stdout: {buf}");
+
                         ls.send(buf).await.ok();
                     }
                 });
 
-                let mut stderr = xbuild.stderr.take().unwrap();
+                let mut stderr = BufReader::new(xbuild.stderr.take().unwrap());
                 let stderr = spawn(async move {
                     loop {
                         let mut buf = String::new();
-                        if stderr.read_to_string(&mut buf).await.is_err() {
+                        if stderr.read_line(&mut buf).await.is_err() {
                             break;
                         }
                         if buf.is_empty() {
                             break;
                         }
+
+                        if buf.ends_with('\n') {
+                            buf.pop();
+                        }
+                        tracing::trace!("xbuild stderr: {buf}");
+
                         line_sender.send(buf).await.ok();
                     }
                 });
@@ -280,11 +313,21 @@ impl Environment for AndroidEnvironment {
                 let regex_finder = async {
                     while let Ok(line) = line_receiver.recv().await {
                         if let Some(mat) = dump_finder.captures(&line) {
-                            if let Some(data) = mat.get(0) {
+                            if let Some(data) = mat.get(1) {
+                                let mut stop_running = false;
                                 let event: keter_test::TestEvent =
                                     serde_json::from_str(data.as_str())?;
 
+                                // Stop running if event is the end event.
+                                if let keter_test::TestEvent::End { .. } = &event {
+                                    stop_running = true;
+                                }
+
                                 keter_test::reporter::Reporter::report(&mut reporter, event).await;
+
+                                if stop_running {
+                                    break;
+                                }
                             }
                         }
                     }

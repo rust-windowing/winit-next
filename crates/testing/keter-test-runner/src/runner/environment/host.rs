@@ -32,7 +32,7 @@ impl Environment for CurrentHost {
         args: &[&OsStr],
         pwd: Option<&OsStr>,
     ) -> Result<Self::Command> {
-        tracing::info!("running command {cmd:?} with args {args:?}",);
+        tracing::debug!("running command {cmd:?} with args {args:?}",);
 
         let mut command = Command::new(cmd);
         command.args(args);

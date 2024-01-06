@@ -67,7 +67,7 @@ impl DockerEnvironment {
                     if line.is_empty() {
                         break;
                     }
-                    tracing::info!("docker stderr: {line}");
+                    tracing::trace!("docker stderr: {line}");
                 }
             });
             stdout
@@ -157,7 +157,7 @@ impl Environment for DockerEnvironment {
             sh_command.push_str(arg);
         }
 
-        tracing::info!("docker exec with command: {sh_command}");
+        tracing::debug!("docker exec with command: {sh_command}");
 
         let child = docker()?
             .arg("exec")

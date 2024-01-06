@@ -32,7 +32,7 @@ impl Command {
         Self {
             command: command.as_ref().to_os_string(),
             args: vec![],
-            pwd: None
+            pwd: None,
         }
     }
 
@@ -121,13 +121,13 @@ pub async fn run(
                         break;
                     }
                     buffer.pop();
-                    tracing::info!("+ {buffer}");
+                    tracing::debug!("+ {buffer}");
                     buffer.clear();
                 }
 
                 // Write out any remaining data.
                 if !buffer.is_empty() {
-                    tracing::info!("+ {buffer}");
+                    tracing::debug!("+ {buffer}");
                 }
             }
         }
