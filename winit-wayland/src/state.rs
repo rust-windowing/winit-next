@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use calloop::ping::Ping;
 use raw_window_handle::{DisplayHandle, HandleError, HasDisplayHandle};
 use raw_window_handle_05::HasRawDisplayHandle as HasRawDisplayHandle05;
 
@@ -24,6 +25,7 @@ use sctk::shm::slot::SlotPool;
 use sctk::shm::{Shm, ShmHandler};
 use sctk::subcompositor::SubcompositorState;
 
+use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::EventLoopHandle;
 use winit_core::monitor::{Monitor as CoreMonitor, MonitorId};
 use winit_core::window::{Window as CoreWindow, WindowAttributes, WindowId};
@@ -31,9 +33,13 @@ use winit_core::window::{Window as CoreWindow, WindowAttributes, WindowId};
 use crate::monitor::Monitor;
 use crate::window::Window;
 
-use crate::event_loop::RuntimeState;
+use crate::event_loop::{EventLoopProxy, RuntimeState};
 
 impl EventLoopHandle for WinitState {
+    fn proxy(&self) -> Arc<dyn CoreEventLoopProxy> {
+        self.proxy.clone()
+    }
+
     fn create_window(&mut self, attributes: &WindowAttributes) -> Result<(), ()> {
         let window = Window::new(self, attributes);
         let window_id = window.id();
@@ -129,6 +135,8 @@ pub struct WinitState {
 
     pub(crate) queue_handle: QueueHandle<RuntimeState>,
 
+    pub proxy: Arc<EventLoopProxy>,
+
     pub exit: bool,
 }
 
@@ -137,6 +145,7 @@ impl WinitState {
         connection: Connection,
         globals: &GlobalList,
         queue_handle: &QueueHandle<RuntimeState>,
+        proxy: EventLoopProxy,
     ) -> Result<Self, ()> {
         let registry_state = RegistryState::new(globals);
         let output_state = OutputState::new(globals, queue_handle);
@@ -168,6 +177,7 @@ impl WinitState {
             queue_handle: queue_handle.clone(),
             subcompositor: subcompositor_state,
             compositor: compositor_state,
+            proxy: Arc::new(proxy),
             registry_state,
             output_state,
             seat_state,

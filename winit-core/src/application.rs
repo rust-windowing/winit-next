@@ -6,6 +6,9 @@ use crate::input::touch::TouchInputHandler;
 use crate::window::WindowId;
 
 pub trait Application: ApplicationWindow {
+    /// Wake up due to user request.
+    fn user_wakeup(&mut self, loop_handle: &mut dyn EventLoopHandle);
+
     /// Emitted when new events arrive from the OS to be processed.
     fn new_events(&mut self, loop_handle: &mut dyn EventLoopHandle, start_cause: StartCause);
 
@@ -16,8 +19,9 @@ pub trait Application: ApplicationWindow {
     fn loop_exiting(&mut self, loop_handle: &mut dyn EventLoopHandle);
 
     // The APIs which we consider optional, thus the application may opt-in/out the
-    // behavior. XXX ========================= ¯\_(ツ)_/¯
-    // ================================
+    // behavior.
+    //
+    // =========================  ¯\_(ツ)_/¯ ================================
 
     #[inline(always)]
     fn touch_handler(&mut self) -> Option<&mut dyn TouchInputHandler> {

@@ -1,4 +1,5 @@
 use std::num::NonZeroU32;
+use std::time::Duration;
 
 use winit_core::application::{Application, ApplicationWindow, StartCause};
 use winit_core::dpi::PhysicalSize;
@@ -25,6 +26,10 @@ pub struct State {
 // `poll` the sources looks more appealing.
 
 impl Application for State {
+    fn user_wakeup(&mut self, _: &mut dyn EventLoopHandle) {
+        println!("Wake up");
+    }
+
     fn new_events(&mut self, loop_handle: &mut dyn EventLoopHandle, start_cause: StartCause) {
         println!("Start cause {start_cause:?}");
         let _ = loop_handle.create_window(&Default::default());
@@ -99,10 +104,18 @@ impl ApplicationWindow for State {
 
 fn main() {
     // TODO this is ugly.
-    let event_loop = <EventLoop as EventLoopRequests<State>>::new().unwrap();
+    let mut event_loop = <EventLoop as EventLoopRequests<State>>::new().unwrap();
     let context =
         unsafe { Context::new(&event_loop).expect("failed to create softbuffer context") };
     let state = State { context, surface: None };
+
+    let proxy = EventLoopRequests::<State>::proxy(&mut event_loop);
+
+    // Test out the proxy.
+    std::thread::spawn(move || loop {
+        proxy.wakeup();
+        std::thread::sleep(Duration::from_millis(500));
+    });
 
     event_loop.run(state);
 }
