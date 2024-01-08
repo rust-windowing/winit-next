@@ -1,5 +1,5 @@
 # Ubuntu testing container
-# Usually tagged as ghcr.io/notgull/keter:ubuntu
+# Usually tagged as ghcr.io/notgull/winit:ubuntu
 
 FROM rust as final
 ARG DEBIAN_FRONTEND=noninteractive

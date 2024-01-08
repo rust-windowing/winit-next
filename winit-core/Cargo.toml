@@ -9,3 +9,11 @@ publish = false
 bitflags = "2.4.1"
 raw-window-handle = "0.6.0"
 raw-window-handle-05 = { package = "raw-window-handle", version = "0.5.2" }
+
+[dev-dependencies]
+futures-lite = "2.0.0"
+winit-test.workspace = true
+
+[[example]]
+name = "winit-core_hello_world"
+path = "winit_tests/hello_world/src/lib.rs"

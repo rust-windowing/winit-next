@@ -61,7 +61,7 @@ impl Test {
     pub async fn run(self, crates: Vec<Crate>) -> color_eyre::Result<()> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
-            .nth(3)
+            .nth(1)
             .ok_or_else(|| eyre!("this cargo package is at an invalid path"))?;
 
         let result = match self {

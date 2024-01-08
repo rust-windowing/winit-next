@@ -1,8 +1,8 @@
-# keter-test-runner
+# winit-test-runner
 
-Test runner for `keter`.
+Test runner for `winit`.
 
-This binary acts as orchestration for running tests in `keter`. In addition to
+This binary acts as orchestration for running tests in `winit`. In addition to
 what is often used in normal Rust tests (formatting, Clippy, unit tests), it also
 runs those tests in cross-compilation environments on other platforms.
 
@@ -12,11 +12,11 @@ There are different types of tests:
   `cargo fmt` and `cargo clippy` are used to inspect Rust code.
 - **Functionality tests** run the doctests and unit tests in Rust code. These
   often ensure that basic functionality and logic are in working order.
-- **Host tests** run the `keter` test suite on the current host. This test suite
-  fully tests the functionality of `keter` to ensure that it is working properly.
-  A full CI run with `keter` should be fully bug-free.
-- **Cross tests** run the `keter` test suite in Docker containers/virtual
-  machines in order to ensure `keter` works on all possible hosts.
+- **Host tests** run the `winit` test suite on the current host. This test suite
+  fully tests the functionality of `winit` to ensure that it is working properly.
+  A full CI run with `winit` should be fully bug-free.
+- **Cross tests** run the `winit` test suite in Docker containers/virtual
+  machines in order to ensure `winit` works on all possible hosts.
 
 ## License
 

@@ -3,6 +3,7 @@
 mod runner;
 
 use std::path::Path;
+use std::process::exit;
 
 use color_eyre::{eyre::bail, Result};
 use owo_colors::OwoColorize;
@@ -18,6 +19,7 @@ fn main() {
     // Run the main function.
     if let Err(e) = async_io::block_on(entry(matches)) {
         println!("{}{:?}", "encountered a fatal error: ".red().bold(), e);
+        exit(1);
     }
 }
 
@@ -49,7 +51,7 @@ async fn read_config(path: impl AsRef<Path>) -> Result<Vec<runner::Crate>> {
 }
 
 fn cli() -> clap::Command {
-    clap::Command::new("keter-test-runner")
+    clap::Command::new("winit-test-runner")
         .subcommand(
             clap::Command::new("style").arg(
                 clap::Arg::new("config")

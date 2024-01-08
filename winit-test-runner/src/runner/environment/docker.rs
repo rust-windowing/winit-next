@@ -20,7 +20,7 @@ use crate::runner::command::{docker, run};
 use crate::runner::environment::{CurrentHost, Environment, RunCommand};
 use crate::runner::util::spawn;
 
-const TEST_LISTENER_PATH: &str = "/tmp/keter_test_listener.sock";
+const TEST_LISTENER_PATH: &str = "/tmp/winit_test_listener.sock";
 
 /// Run commands in a Docker container.
 pub(crate) struct DockerEnvironment {
@@ -53,9 +53,9 @@ impl DockerEnvironment {
             #[cfg(unix)]
             {
                 async_fs::remove_file(TEST_LISTENER_PATH).await.ok();
-                if let Err(e) = keter_test::run_unix_listener(
+                if let Err(e) = winit_test::run_unix_listener(
                     TEST_LISTENER_PATH.as_ref(),
-                    keter_test::reporter::ConsoleReporter::new(),
+                    winit_test::reporter::ConsoleReporter::new(),
                     ready_send,
                 )
                 .await
@@ -77,7 +77,7 @@ impl DockerEnvironment {
             .args(["--volume", &format!("{0}:{0}", TEST_LISTENER_PATH)])
             .args([
                 "--env",
-                &format!("KETER_TEST_UDS_SOCKET={}", TEST_LISTENER_PATH),
+                &format!("winit_TEST_UDS_SOCKET={}", TEST_LISTENER_PATH),
             ])
             .args(["--workdir", root])
             .arg(get_target_container(target_triple, options)?)
@@ -232,5 +232,5 @@ fn get_target_container(target_triple: &str, options: Option<&str>) -> Result<St
         bail!("cannot handle options yet");
     }
 
-    Ok(format!("ghcr.io/notgull/keter:{tag}"))
+    Ok(format!("ghcr.io/notgull/winit_test:{tag}"))
 }

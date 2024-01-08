@@ -1,6 +1,6 @@
 // MIT/Apache2 License
 
-//! A testing framework designed to be used internally in `keter`.
+//! A testing framework designed to be used internally in `winit`.
 
 pub mod reporter;
 
@@ -151,12 +151,12 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
 
     // Figure out which reporter we're using.
     let reporter: Box<dyn reporter::Reporter + Send> =
-        if let Ok(address) = env::var("KETER_TEST_TCP_ADDRESS") {
+        if let Ok(address) = env::var("winit_TEST_TCP_ADDRESS") {
             Box::new(
                 future::block_on(reporter::StreamReporter::connect(
                     async_net::TcpStream::connect(address),
                     Duration::from_secs(
-                        env::var("KETER_TEST_TCP_TIMEOUT")
+                        env::var("winit_TEST_TCP_TIMEOUT")
                             .ok()
                             .and_then(|timeout| timeout.parse::<u64>().ok())
                             .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT),
@@ -168,12 +168,12 @@ pub fn run_tests<T>(f: impl FnOnce(&TestHarness) -> T) -> T {
             loop {
                 #[cfg(unix)]
                 {
-                    if let Ok(path) = env::var("KETER_TEST_UDS_SOCKET") {
+                    if let Ok(path) = env::var("winit_TEST_UDS_SOCKET") {
                         break Box::new(
                             future::block_on(reporter::StreamReporter::connect(
                                 async_net::unix::UnixStream::connect(path),
                                 Duration::from_secs(
-                                    env::var("KETER_TEST_UDS_TIMEOUT")
+                                    env::var("winit_TEST_UDS_TIMEOUT")
                                         .ok()
                                         .and_then(|timeout| timeout.parse::<u64>().ok())
                                         .unwrap_or(DEFAULT_TCP_CONNECT_TIMEOUT),

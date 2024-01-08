@@ -1,6 +1,6 @@
 // MIT/Apache2 License
 
-//! Run the test suite found in `keter-test`.
+//! Run the test suite found in `winit-test`.
 
 use crate::runner::command::{cargo, cargo_for_check, run};
 use crate::runner::environment::{choose_environment, CurrentHost, RunCommand};
@@ -19,16 +19,16 @@ pub(crate) async fn tests(root: &Path, crates: Vec<Crate>) -> Result<()> {
         // Get the root directory for this crate.
         let crate_root = crate_manifest_root(root, &crate_.name).await?;
 
-        // There should be a folder named "keter-tests" here. If there isn't, there are no tests.
-        let keter_tests = crate_root.join("keter_tests");
-        if async_fs::metadata(&keter_tests).await.is_err() {
-            tracing::warn!("crate `{}` has no keter_tests", &crate_.name);
+        // There should be a folder named "winit-tests" here. If there isn't, there are no tests.
+        let winit_tests = crate_root.join("winit_tests");
+        if async_fs::metadata(&winit_tests).await.is_err() {
+            tracing::warn!("crate `{}` has no winit_tests", &crate_.name);
             continue;
         }
 
-        // List the examples here in keter tests.
+        // List the examples here in winit tests.
         let mut touched = false;
-        let running_tests = async_fs::read_dir(keter_tests)
+        let running_tests = async_fs::read_dir(winit_tests)
             .await?
             .inspect(|_| {
                 touched = true;
@@ -41,7 +41,7 @@ pub(crate) async fn tests(root: &Path, crates: Vec<Crate>) -> Result<()> {
                         .file_name()
                         .and_then(|name| name.to_str())
                         .ok_or_else(|| {
-                            eyre!("encountered invalid keter_test example: {example:?}")
+                            eyre!("encountered invalid winit_test example: {example:?}")
                         })?;
 
                     for check in &crate_.checks {
@@ -52,7 +52,7 @@ pub(crate) async fn tests(root: &Path, crates: Vec<Crate>) -> Result<()> {
                             cargo_for_check(&["run", "--example", &example_name], crate_, check)?;
                         run(&format!("cargo_test_{name}"), cmd.spawn(&*env)?, None)
                             .await
-                            .with_context(|| format!("while running keter test {name}"))?;
+                            .with_context(|| format!("while running winit test {name}"))?;
                     }
 
                     Ok(())
@@ -65,7 +65,7 @@ pub(crate) async fn tests(root: &Path, crates: Vec<Crate>) -> Result<()> {
             .await?;
 
         if !touched {
-            tracing::warn!("no keter tests run for {}", &crate_.name);
+            tracing::warn!("no winit tests run for {}", &crate_.name);
         }
     }
 

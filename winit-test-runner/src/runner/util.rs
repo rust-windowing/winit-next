@@ -68,7 +68,7 @@ fn executor() -> &'static Executor<'static> {
         // Only use two executor threads.
         for i in 0..2 {
             thread::Builder::new()
-                .name(format!("keter-test-runner-{i}"))
+                .name(format!("winit-test-runner-{i}"))
                 .spawn(|| {
                     async_io::block_on(executor().run(pending::<()>()));
                 })

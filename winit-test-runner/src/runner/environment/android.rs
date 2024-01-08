@@ -258,7 +258,7 @@ impl Environment for AndroidEnvironment {
                     .args(["--arch", "arm64"])
                     .args([
                         "--manifest-path",
-                        "crates/foundation/keter-reactor/keter_tests/general_tests/Cargo.toml",
+                        "crates/foundation/winit-reactor/winit_tests/general_tests/Cargo.toml",
                     ])
                     .spawn(&*this.host)?;
 
@@ -307,23 +307,23 @@ impl Environment for AndroidEnvironment {
                 });
 
                 let runner = spawn(async move { run("xbuild", xbuild, None).await });
-                let mut reporter = keter_test::reporter::ConsoleReporter::new();
-                let dump_finder = Regex::new(r"KETER_TEST_DUMP\((.*)\)KETER_TEST_DUMP")?;
+                let mut reporter = winit_test::reporter::ConsoleReporter::new();
+                let dump_finder = Regex::new(r"winit_TEST_DUMP\((.*)\)winit_TEST_DUMP")?;
 
                 let regex_finder = async {
                     while let Ok(line) = line_receiver.recv().await {
                         if let Some(mat) = dump_finder.captures(&line) {
                             if let Some(data) = mat.get(1) {
                                 let mut stop_running = false;
-                                let event: keter_test::TestEvent =
+                                let event: winit_test::TestEvent =
                                     serde_json::from_str(data.as_str())?;
 
                                 // Stop running if event is the end event.
-                                if let keter_test::TestEvent::End { .. } = &event {
+                                if let winit_test::TestEvent::End { .. } = &event {
                                     stop_running = true;
                                 }
 
-                                keter_test::reporter::Reporter::report(&mut reporter, event).await;
+                                winit_test::reporter::Reporter::report(&mut reporter, event).await;
 
                                 if stop_running {
                                     break;
@@ -344,7 +344,7 @@ impl Environment for AndroidEnvironment {
                 stdout.cancel().await;
                 stderr.cancel().await;
 
-                let code = keter_test::reporter::Reporter::finish(&mut reporter);
+                let code = winit_test::reporter::Reporter::finish(&mut reporter);
                 if code != 0 {
                     bail!("received an error from the android runner")
                 } else {

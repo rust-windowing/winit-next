@@ -2,8 +2,10 @@
 members = [ "winit",
     "winit-core", "winit-examples",
     "winit-wayland",
+    "winit-test",
+    "winit-test-runner"
 ]
 resolver = "2"
 
 [workspace.dependencies]
-keter-test = { path = "crates/testing/keter-test" }
+winit-test = { path = "winit-test" }

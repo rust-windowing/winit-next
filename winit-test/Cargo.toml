@@ -1,8 +1,9 @@
 [package]
-name = "keter-test"
+name = "winit-test"
 version = "0.1.0"
 edition = "2021"
 authors = ["John Nunley <dev@notgull.net>"]
+publish = false
 
 [dependencies]
 async-channel = "2.1.1"

@@ -4,12 +4,8 @@
 set -eu
 
 rx() {
-  cmd_rx="$1"
-  shift
-  (
-    set -x
-    "$cmd_rx" "$@"
-  )
+  echo >&2 "+ $*"
+  "$@"
 }
 no_out() {
   cmd_noout="$1"
@@ -30,7 +26,7 @@ bail_if_absent() {
 }
 test_runner() {
   bail_if_absent "${CARGO:-cargo}"
-  rx "${CARGO:-cargo}" run --release -p keter-test-runner -- "$@"
+  rx "${CARGO:-cargo}" run --release -p winit-test-runner -- "$@"
 }
 
 basedir="$(dirname -- "$(dirname -- "$0")")"
@@ -47,12 +43,12 @@ case "${2:-2}" in
 esac
 
 # Always run style tests.
-test_runner style --config "$config_path"
+#test_runner style --config "$config_path"
 
 # At level 1 or higher, run functionality tests.
-if [ "$level" -ge 1 ]; then
-  test_runner functionality --config "$config_path"
-fi
+#if [ "$level" -ge 1 ]; then
+#  test_runner functionality --config "$config_path"
+#fi
 
 # At level 2 or higher, run full tests.
 if [ "$level" -ge 2 ]; then

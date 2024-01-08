@@ -25,7 +25,7 @@ impl Reporter for DumpReporter {
     ) -> std::pin::Pin<Box<dyn futures_lite::prelude::Future<Output = ()> + Send + '_>> {
         Box::pin(blocking::unblock(move || {
             let data = serde_json::to_string(&test).unwrap();
-            println!("KETER_TEST_DUMP({data})KETER_TEST_DUMP");
+            println!("winit_TEST_DUMP({data})winit_TEST_DUMP");
         }))
     }
 
