@@ -20,6 +20,7 @@ use sctk::shell::xdg::XdgSurface;
 use sctk::shell::WaylandSurface;
 
 use wayland_client::{Connection, QueueHandle};
+use winit_core::application::Application;
 use winit_core::dpi::{LogicalSize, PhysicalSize, Size};
 use winit_core::monitor::MonitorId;
 use winit_core::window::{Theme, Window as CoreWindow, WindowAttributes, WindowId};
@@ -33,11 +34,11 @@ use crate::state::WinitState;
 const MIN_WINDOW_SIZE: LogicalSize<u32> = LogicalSize::new(2, 1);
 
 #[cfg(feature = "sctk-adwaita")]
-type WinitFrame = sctk_adwaita::AdwaitaFrame<RuntimeState>;
+type WinitFrame<T> = sctk_adwaita::AdwaitaFrame<RuntimeState<T>>;
 #[cfg(not(feature = "sctk-adwaita"))]
 type WinitFrame = sctk::shell::xdg::fallback_frame::FallbackFrame<RuntimeState>;
 
-pub struct Window {
+pub struct Window<T: Application + 'static> {
     /// The last received configure.
     pub last_configure: Option<WindowConfigure>,
 
@@ -45,7 +46,7 @@ pub struct Window {
     fractional_scale: Option<WpFractionalScaleV1>,
 
     /// The window frame, which is created from the configure request.
-    frame: Option<WinitFrame>,
+    frame: Option<WinitFrame<T>>,
 
     /// The scale factor of the window.
     pub scale_factor: f64,
@@ -97,8 +98,8 @@ pub struct Window {
     pub window: XdgWindow,
 }
 
-impl Window {
-    pub fn new(winit: &mut WinitState, attributes: &WindowAttributes) -> Self {
+impl<T: Application + 'static> Window<T> {
+    pub fn new(winit: &mut WinitState<T>, attributes: &WindowAttributes) -> Self {
         let compositor = winit.compositor.clone();
         let surface = compositor.create_surface(&winit.queue_handle);
 
@@ -294,7 +295,7 @@ impl Window {
     }
 }
 
-impl CoreWindow for Window {
+impl<T: Application + 'static> CoreWindow for Window<T> {
     fn id(&self) -> WindowId {
         crate::make_wid(&self.window.wl_surface())
     }
@@ -372,7 +373,7 @@ impl CoreWindow for Window {
     }
 }
 
-impl HasWindowHandle for Window {
+impl<T: Application + 'static> HasWindowHandle for Window<T> {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
         let ptr = self.window.wl_surface().id().as_ptr();
         let handle = WaylandWindowHandle::new({
@@ -383,7 +384,7 @@ impl HasWindowHandle for Window {
     }
 }
 
-impl WindowHandler for RuntimeState {
+impl<T: Application + 'static> WindowHandler for RuntimeState<T> {
     fn request_close(&mut self, _: &Connection, _: &QueueHandle<Self>, window: &XdgWindow) {
         let window_id = crate::make_wid(window.wl_surface());
         let user_state = self.user.as_mut().unwrap();
@@ -462,6 +463,11 @@ impl WindowHandler for RuntimeState {
 
         window.resize(new_size);
 
+        if let Some(foo) = self.vtable.foo {
+            println!("Calling optional method!");
+            foo(user);
+        }
+
         // NOTE: we consider window as created when its initial configure arrives, until
         // then it's considered as not created and attempt to get it will result in
         // error.
@@ -478,7 +484,7 @@ impl WindowHandler for RuntimeState {
     }
 }
 
-unsafe impl HasRawWindowHandle05 for Window {
+unsafe impl<T: Application + 'static> HasRawWindowHandle05 for Window<T> {
     fn raw_window_handle(&self) -> raw_window_handle_05::RawWindowHandle {
         let mut window_handle = raw_window_handle_05::WaylandWindowHandle::empty();
         window_handle.surface = self.window.wl_surface().id().as_ptr() as *mut _;

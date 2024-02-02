@@ -25,6 +25,7 @@ use sctk::shm::slot::SlotPool;
 use sctk::shm::{Shm, ShmHandler};
 use sctk::subcompositor::SubcompositorState;
 
+use winit_core::application::Application;
 use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::EventLoopHandle;
 use winit_core::monitor::{Monitor as CoreMonitor, MonitorId};
@@ -35,7 +36,7 @@ use crate::window::Window;
 
 use crate::event_loop::{EventLoopProxy, RuntimeState};
 
-impl EventLoopHandle for WinitState {
+impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
     fn proxy(&self) -> Arc<dyn CoreEventLoopProxy> {
         self.proxy.clone()
     }
@@ -86,13 +87,13 @@ impl EventLoopHandle for WinitState {
     }
 }
 
-impl HasDisplayHandle for WinitState {
+impl<T: Application + 'static> HasDisplayHandle for WinitState<T> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
         todo!()
     }
 }
 
-unsafe impl HasRawDisplayHandle05 for WinitState {
+unsafe impl<T: Application + 'static> HasRawDisplayHandle05 for WinitState<T> {
     fn raw_display_handle(&self) -> raw_window_handle_05::RawDisplayHandle {
         let mut display_handle = raw_window_handle_05::WaylandDisplayHandle::empty();
         display_handle.display = self.connection.display().id().as_ptr() as *mut _;
@@ -101,7 +102,7 @@ unsafe impl HasRawDisplayHandle05 for WinitState {
 }
 
 /// Winit's Wayland state.
-pub struct WinitState {
+pub struct WinitState<T: Application + 'static> {
     /// The underlying connection.
     pub connection: Connection,
 
@@ -129,22 +130,22 @@ pub struct WinitState {
     /// Currently handled seats.
     pub seats: HashMap<ObjectId, ()>,
 
-    pub windows: HashMap<WindowId, Window>,
+    pub windows: HashMap<WindowId, Window<T>>,
 
     pub monitors: Vec<Monitor>,
 
-    pub(crate) queue_handle: QueueHandle<RuntimeState>,
+    pub(crate) queue_handle: QueueHandle<RuntimeState<T>>,
 
     pub proxy: Arc<EventLoopProxy>,
 
     pub exit: bool,
 }
 
-impl WinitState {
+impl<T: Application + 'static> WinitState<T> {
     pub(crate) fn new(
         connection: Connection,
         globals: &GlobalList,
-        queue_handle: &QueueHandle<RuntimeState>,
+        queue_handle: &QueueHandle<RuntimeState<T>>,
         proxy: EventLoopProxy,
     ) -> Result<Self, ()> {
         let registry_state = RegistryState::new(globals);
@@ -191,7 +192,7 @@ impl WinitState {
     }
 
     pub(crate) fn scale_factor_changed(
-        state: &mut RuntimeState,
+        state: &mut RuntimeState<T>,
         surface: &WlSurface,
         scale_factor: f64,
         legacy: bool,
@@ -214,7 +215,7 @@ impl WinitState {
     }
 }
 
-impl ProvidesRegistryState for RuntimeState {
+impl<T: Application + 'static> ProvidesRegistryState for RuntimeState<T> {
     sctk::registry_handlers![OutputState, SeatState];
 
     fn registry(&mut self) -> &mut RegistryState {
@@ -222,7 +223,7 @@ impl ProvidesRegistryState for RuntimeState {
     }
 }
 
-impl SeatHandler for RuntimeState {
+impl<T: Application + 'static> SeatHandler for RuntimeState<T> {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.winit.seat_state
     }
@@ -262,7 +263,7 @@ impl SeatHandler for RuntimeState {
     }
 }
 
-impl CompositorHandler for RuntimeState {
+impl<T: Application + 'static> CompositorHandler for RuntimeState<T> {
     fn scale_factor_changed(
         &mut self,
         conn: &Connection,
@@ -288,16 +289,16 @@ impl CompositorHandler for RuntimeState {
     }
 }
 
-impl ShmHandler for RuntimeState {
+impl<T: Application + 'static> ShmHandler for RuntimeState<T> {
     fn shm_state(&mut self) -> &mut Shm {
         &mut self.winit.shm
     }
 }
 
-sctk::delegate_registry!(RuntimeState);
-sctk::delegate_seat!(RuntimeState);
-sctk::delegate_subcompositor!(RuntimeState);
-sctk::delegate_shm!(RuntimeState);
-sctk::delegate_compositor!(RuntimeState);
-sctk::delegate_xdg_shell!(RuntimeState);
-sctk::delegate_xdg_window!(RuntimeState);
+sctk::delegate_registry!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_seat!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_subcompositor!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_shm!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_compositor!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_xdg_shell!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_xdg_window!(@<T: Application + 'static> RuntimeState<T>);

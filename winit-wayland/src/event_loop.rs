@@ -23,38 +23,38 @@ use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
 use winit_core::window::{Window as CoreWindow, WindowId};
 
 use crate::state::WinitState;
+use crate::MyCoolTrait;
 
-pub struct EventLoop {
-    state: RuntimeState,
+pub struct EventLoop<T: Application + 'static> {
+    state: RuntimeState<T>,
 
-    event_loop: calloop::EventLoop<'static, RuntimeState>,
+    event_loop: calloop::EventLoop<'static, RuntimeState<T>>,
 }
 
-impl<D> EventLoopRequests<D> for EventLoop
-where
-    D: Application + 'static,
-{
+impl<T: Application + 'static> EventLoopRequests<T> for EventLoop<T> {
     fn new() -> Result<Self, ()> {
         let connection = Connection::connect_to_env().unwrap();
 
         let (globals, mut event_queue) = globals::registry_queue_init(&connection).unwrap();
         let queue_handle = event_queue.handle();
 
-        let event_loop = calloop::EventLoop::<RuntimeState>::try_new().unwrap();
+        let event_loop = calloop::EventLoop::<RuntimeState<T>>::try_new().unwrap();
 
         // Insert the proxy source.
         let (ping, ping_source) = calloop::ping::make_ping().unwrap();
         let proxy = EventLoopProxy::new(ping);
 
-        let _ = event_loop.handle().insert_source(ping_source, |_, _, state: &mut RuntimeState| {
-            let winit = &mut state.winit;
-            let user = &mut state.user.as_mut().unwrap();
-            user.user_wakeup(winit);
-        });
+        let _ =
+            event_loop.handle().insert_source(ping_source, |_, _, state: &mut RuntimeState<T>| {
+                let winit = &mut state.winit;
+                let user = &mut state.user.as_mut().unwrap();
+                user.user_wakeup(winit);
+            });
 
         let mut state = RuntimeState {
             user: None,
             winit: WinitState::new(connection.clone(), &globals, &queue_handle, proxy).unwrap(),
+            vtable: Vtable::default(),
         };
 
         let _ = event_queue.roundtrip(&mut state);
@@ -65,7 +65,7 @@ where
         Ok(Self { event_loop, state })
     }
 
-    fn run(mut self, mut state: D) {
+    fn run(mut self, mut state: T) {
         // SAFETY: The user state is being used only inside the loop and can't have
         // Wayland objects in it. Calloop itself allow the state to have a
         // non-static lifetime attached to it, however wayland-rs forces bound
@@ -74,7 +74,7 @@ where
         // a lifetime of `'a` allowed by calloop, thus making it sound if you
         // think that calloop dispatches not one but 2 states at the same time.
         self.state.user =
-            Some(unsafe { std::mem::transmute::<&mut D, &'static mut D>(&mut state) });
+            Some(unsafe { std::mem::transmute::<&mut T, &'static mut T>(&mut state) });
 
         self.state
             .user
@@ -123,25 +123,44 @@ where
     }
 }
 
-impl HasDisplayHandle for EventLoop {
+impl<T: Application + 'static + MyCoolTrait> EventLoop<T> {
+    /// This sets up handelr for `MyCoolTrait` but doesn't force it through-out the codebase.
+    pub fn register_my_cool_trait_handler(&mut self) {
+        self.state.vtable.foo = Some(T::foo);
+    }
+}
+
+impl<T: Application + 'static> HasDisplayHandle for EventLoop<T> {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
         self.state.winit.display_handle()
     }
 }
 
-unsafe impl HasRawDisplayHandle05 for EventLoop {
+unsafe impl<T: Application + 'static> HasRawDisplayHandle05 for EventLoop<T> {
     fn raw_display_handle(&self) -> raw_window_handle_05::RawDisplayHandle {
         self.state.winit.raw_display_handle()
     }
 }
 
 /// Runtime state passed around.
-pub(crate) struct RuntimeState {
+pub(crate) struct RuntimeState<T: Application + 'static> {
     /// The user state we're using during the runtime.
-    pub user: Option<&'static mut dyn Application>,
+    pub user: Option<&'static mut T>,
 
     /// The state of the winit.
-    pub winit: WinitState,
+    pub winit: WinitState<T>,
+
+    pub vtable: Vtable<T>,
+}
+
+pub struct Vtable<T: Application + 'static> {
+    pub foo: Option<fn(&mut T)>,
+}
+
+impl<T: Application + 'static> Default for Vtable<T> {
+    fn default() -> Self {
+        Self { foo: None }
+    }
 }
 
 pub struct EventLoopProxy {

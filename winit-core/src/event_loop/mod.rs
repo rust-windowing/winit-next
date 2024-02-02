@@ -14,14 +14,14 @@ pub mod proxy;
 /// API to run the event loop.
 pub struct EventLoop {}
 
-pub trait EventLoopRequests<D>: HasDisplayHandle + HasRawDisplayHandle05 + Sized
+pub trait EventLoopRequests<T>: HasDisplayHandle + HasRawDisplayHandle05 + Sized
 where
-    D: Application + 'static,
+    T: Application + 'static,
 {
     fn new() -> Result<Self, ()>;
 
     /// Run the event loop.
-    fn run(self, state: D);
+    fn run(self, state: T);
 
     /// Get the proxy to wakeup the event loop.
     fn proxy(&self) -> Arc<dyn EventLoopProxy>;

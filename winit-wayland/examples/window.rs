@@ -6,6 +6,7 @@ use winit_core::dpi::PhysicalSize;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
 use winit_core::window::WindowId;
 use winit_wayland::event_loop::EventLoop;
+use winit_wayland::MyCoolTrait;
 
 use softbuffer::{Context, Surface};
 
@@ -24,6 +25,12 @@ pub struct State {
 //
 // In general, a generic interface to wakeup the loop and then the user can
 // `poll` the sources looks more appealing.
+
+impl MyCoolTrait for State {
+    fn foo(&mut self) {
+        println!("Foo");
+    }
+}
 
 impl Application for State {
     fn user_wakeup(&mut self, _: &mut dyn EventLoopHandle) {
@@ -104,7 +111,10 @@ impl ApplicationWindow for State {
 
 fn main() {
     // TODO this is ugly.
-    let mut event_loop = <EventLoop as EventLoopRequests<State>>::new().unwrap();
+    let mut event_loop = <EventLoop<State> as EventLoopRequests<State>>::new().unwrap();
+
+    event_loop.register_my_cool_trait_handler();
+
     let context =
         unsafe { Context::new(&event_loop).expect("failed to create softbuffer context") };
     let state = State { context, surface: None };

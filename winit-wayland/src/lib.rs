@@ -36,3 +36,9 @@ pub(crate) fn logical_to_physical_rounded(
     let height = size.height as f64 * scale_factor;
     (width.round(), height.round()).into()
 }
+
+use winit_core::application::Application;
+
+pub trait MyCoolTrait: Application + 'static {
+    fn foo(&mut self);
+}

@@ -4,6 +4,7 @@ use sctk::reexports::client::Proxy;
 use sctk::output::{OutputData, OutputHandler, OutputState};
 
 use wayland_client::{Connection, QueueHandle};
+use winit_core::application::Application;
 use winit_core::dpi::{LogicalPosition, PhysicalPosition, PhysicalSize};
 use winit_core::monitor::{Monitor as CoreMonitor, MonitorId};
 
@@ -72,7 +73,7 @@ impl CoreMonitor for Monitor {
     }
 }
 
-impl OutputHandler for RuntimeState {
+impl<T: Application + 'static> OutputHandler for RuntimeState<T> {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.winit.output_state
     }
@@ -91,4 +92,4 @@ impl OutputHandler for RuntimeState {
     }
 }
 
-sctk::delegate_output!(RuntimeState);
+sctk::delegate_output!(@<T: Application + 'static> RuntimeState<T>);
