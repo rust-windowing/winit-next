@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::time::Instant;
 
 use crate::dpi::PhysicalSize;
@@ -30,6 +31,11 @@ pub trait Application: ApplicationWindow {
 
     #[inline(always)]
     fn device_events_handelr(&mut self) -> Option<&mut dyn DeviceEventsHandler> {
+        None
+    }
+
+    #[inline(always)]
+    fn as_any(&mut self) -> Option<&mut dyn Any> {
         None
     }
 }

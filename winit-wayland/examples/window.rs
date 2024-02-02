@@ -6,6 +6,7 @@ use winit_core::dpi::PhysicalSize;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
 use winit_core::window::WindowId;
 use winit_wayland::event_loop::EventLoop;
+use winit_wayland::MyCoolTrait;
 
 use softbuffer::{Context, Surface};
 
@@ -25,6 +26,12 @@ pub struct State {
 // In general, a generic interface to wakeup the loop and then the user can
 // `poll` the sources looks more appealing.
 
+impl MyCoolTrait for State {
+    fn foo(&mut self) {
+        println!("Hello from user trait!");
+    }
+}
+
 impl Application for State {
     fn user_wakeup(&mut self, _: &mut dyn EventLoopHandle) {
         println!("Wake up");
@@ -42,7 +49,13 @@ impl Application for State {
     fn loop_exiting(&mut self, _: &mut dyn EventLoopHandle) {
         println!("Exiting the loop");
     }
+
+    fn as_any(&mut self) -> Option<&mut dyn std::any::Any> {
+        Some(self)
+    }
 }
+
+use winit_wayland::window::Window as WaylandWindow;
 
 impl ApplicationWindow for State {
     fn created(&mut self, loop_handle: &mut dyn EventLoopHandle, window_id: WindowId) {
@@ -65,6 +78,7 @@ impl ApplicationWindow for State {
         println!("New size {size:?}");
         let window = loop_handle.get_window_mut(window_id).unwrap();
         window.request_redraw();
+        window.as_any().downcast_mut::<WaylandWindow>().unwrap().out_of_tree_method();
     }
 
     fn scale_factor_changed(
@@ -110,6 +124,8 @@ fn main() {
     let state = State { context, surface: None };
 
     let proxy = EventLoopRequests::<State>::proxy(&mut event_loop);
+
+    event_loop.setup_my_cool_trait_handler::<State>();
 
     // Test out the proxy.
     std::thread::spawn(move || loop {

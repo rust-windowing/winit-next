@@ -1,5 +1,7 @@
 // TODO figure out how to do WindowId.
 
+use std::any::Any;
+
 pub use raw_window_handle::HasWindowHandle;
 pub use raw_window_handle_05::HasRawWindowHandle as HasRawWindowHandle05;
 
@@ -35,6 +37,8 @@ pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
     fn current_monitor(&self) -> Option<MonitorId>;
 
     fn primary_monitor(&self) -> Option<MonitorId>;
+
+    fn as_any(&mut self) -> &mut dyn Any;
 }
 
 /// Attributes to use when creating a window.

@@ -165,6 +165,10 @@ impl Window {
         window
     }
 
+    pub fn out_of_tree_method(&mut self) {
+        println!("Calling out-of-tree method");
+    }
+
     /// Set the resizable state on the window.
     #[inline]
     pub fn set_resizable(&mut self, resizable: bool) {
@@ -297,6 +301,10 @@ impl Window {
 impl CoreWindow for Window {
     fn id(&self) -> WindowId {
         crate::make_wid(&self.window.wl_surface())
+    }
+
+    fn as_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 
     fn request_redraw(&mut self) {
@@ -461,6 +469,10 @@ impl WindowHandler for RuntimeState {
         window.last_configure = Some(configure);
 
         window.resize(new_size);
+
+        if let Some(foo) = self.vtable.foo {
+            foo(*user);
+        }
 
         // NOTE: we consider window as created when its initial configure arrives, until
         // then it's considered as not created and attempt to get it will result in

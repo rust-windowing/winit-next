@@ -23,6 +23,7 @@ use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
 use winit_core::window::{Window as CoreWindow, WindowId};
 
 use crate::state::WinitState;
+use crate::MyCoolTrait;
 
 pub struct EventLoop {
     state: RuntimeState,
@@ -55,6 +56,7 @@ where
         let mut state = RuntimeState {
             user: None,
             winit: WinitState::new(connection.clone(), &globals, &queue_handle, proxy).unwrap(),
+            vtable: Default::default(),
         };
 
         let _ = event_queue.roundtrip(&mut state);
@@ -123,6 +125,16 @@ where
     }
 }
 
+use std::any::Any;
+
+impl EventLoop {
+    pub fn setup_my_cool_trait_handler<T: MyCoolTrait>(&mut self) {
+        self.state.vtable.foo = Some(|app: &mut dyn Application| {
+            app.as_any().expect("as_any not implemented").downcast_mut::<T>().unwrap().foo()
+        })
+    }
+}
+
 impl HasDisplayHandle for EventLoop {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
         self.state.winit.display_handle()
@@ -142,6 +154,18 @@ pub(crate) struct RuntimeState {
 
     /// The state of the winit.
     pub winit: WinitState,
+
+    pub vtable: VTable,
+}
+
+pub struct VTable {
+    pub foo: Option<fn(&mut dyn Application)>,
+}
+
+impl Default for VTable {
+    fn default() -> Self {
+        Self { foo: None }
+    }
 }
 
 pub struct EventLoopProxy {

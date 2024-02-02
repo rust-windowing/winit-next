@@ -6,6 +6,7 @@ use sctk::reexports::client::protocol::wl_output::WlOutput;
 use sctk::reexports::client::protocol::wl_surface::WlSurface;
 use sctk::reexports::client::Proxy;
 
+use winit_core::application::Application;
 use winit_core::dpi::{LogicalSize, PhysicalSize};
 use winit_core::monitor::MonitorId;
 use winit_core::window::WindowId;
@@ -35,4 +36,8 @@ pub(crate) fn logical_to_physical_rounded(
     let width = size.width as f64 * scale_factor;
     let height = size.height as f64 * scale_factor;
     (width.round(), height.round()).into()
+}
+
+pub trait MyCoolTrait: Application + 'static {
+    fn foo(&mut self);
 }
