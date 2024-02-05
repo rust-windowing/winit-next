@@ -1,0 +1,10 @@
+[
+    {
+        "name": "winit-core",
+        "checks": [
+            {
+                "target": "x86_64-linux-android"
+            }
+        ] 
+    }
+]

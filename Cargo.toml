@@ -2,5 +2,10 @@
 members = [ "winit",
     "winit-core", "winit-examples",
     "winit-wayland",
+    "winit-test",
+    "winit-test-runner"
 ]
 resolver = "2"
+
+[workspace.dependencies]
+winit-test = { path = "winit-test" }
