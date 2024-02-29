@@ -28,8 +28,8 @@ use sctk::subcompositor::SubcompositorState;
 use winit_core::application::Application;
 use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::EventLoopHandle;
-use winit_core::monitor::{Monitor as CoreMonitor, MonitorId};
-use winit_core::window::{Window as CoreWindow, WindowAttributes, WindowId};
+use winit_core::monitor::{Monitor as WinitMonitor, MonitorId};
+use winit_core::window::{Surface as WinitSurface, WindowAttributes, WindowId};
 
 use crate::monitor::Monitor;
 use crate::window::Window;
@@ -52,22 +52,22 @@ impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
         self.windows.len()
     }
 
-    fn get_window(&self, window_id: WindowId) -> Option<&dyn CoreWindow> {
+    fn get_window(&self, window_id: WindowId) -> Option<&dyn WinitSurface> {
         let window = self.windows.get(&window_id)?;
 
         if window.last_configure.is_none() {
             return None;
         } else {
-            Some(window as &dyn CoreWindow)
+            Some(window as &dyn WinitSurface)
         }
     }
 
-    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn CoreWindow> {
+    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn WinitSurface> {
         let window = self.windows.get_mut(&window_id)?;
         if window.last_configure.is_none() {
             return None;
         } else {
-            Some(window as &mut dyn CoreWindow)
+            Some(window as &mut dyn WinitSurface)
         }
     }
 
@@ -75,15 +75,15 @@ impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
         self.exit = true;
     }
 
-    fn get_monitor(&self, monitor_id: MonitorId) -> Option<&dyn CoreMonitor> {
+    fn get_monitor(&self, monitor_id: MonitorId) -> Option<&dyn WinitMonitor> {
         self.monitors
             .iter()
             .find(|monitor| monitor.id() == monitor_id)
-            .map(|monitor| monitor as &dyn CoreMonitor)
+            .map(|monitor| monitor as &dyn WinitMonitor)
     }
 
-    fn monitors(&self) -> Vec<&dyn CoreMonitor> {
-        self.monitors.iter().map(|monitor| monitor as &dyn CoreMonitor).collect()
+    fn monitors(&self) -> Vec<&dyn WinitMonitor> {
+        self.monitors.iter().map(|monitor| monitor as &dyn WinitMonitor).collect()
     }
 }
 

@@ -20,7 +20,7 @@ use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
 use winit_core::application::Application;
 use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
-use winit_core::window::{Window as CoreWindow, WindowId};
+use winit_core::window::{Surface as CoreSurface, WindowId};
 
 use crate::state::WinitState;
 use crate::MyCoolTrait;

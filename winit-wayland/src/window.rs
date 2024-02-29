@@ -23,7 +23,7 @@ use wayland_client::{Connection, QueueHandle};
 use winit_core::application::Application;
 use winit_core::dpi::{LogicalSize, PhysicalSize, Size};
 use winit_core::monitor::MonitorId;
-use winit_core::window::{Theme, Window as CoreWindow, WindowAttributes, WindowId};
+use winit_core::window::{Surface as WinitSurface, Theme, Toplevel as WinitToplevel, WindowAttributes, WindowId, WindowRole, WindowRoleMut};
 
 use crate::event_loop::RuntimeState;
 use crate::logical_to_physical_rounded;
@@ -295,7 +295,18 @@ impl<T: Application + 'static> Window<T> {
     }
 }
 
-impl<T: Application + 'static> CoreWindow for Window<T> {
+impl<T: Application + 'static> HasWindowHandle for Window<T> {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        let ptr = self.window.wl_surface().id().as_ptr();
+        let handle = WaylandWindowHandle::new({
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface should never be null")
+        });
+
+        unsafe { Ok(WindowHandle::borrow_raw(handle.into())) }
+    }
+}
+
+impl<T: Application + 'static> WinitSurface for Window<T> {
     fn id(&self) -> WindowId {
         crate::make_wid(&self.window.wl_surface())
     }
@@ -304,6 +315,24 @@ impl<T: Application + 'static> CoreWindow for Window<T> {
         self.redraw = true;
     }
 
+    fn scale_factor(&self) -> f64 {
+        self.scale_factor
+    }
+
+    fn inner_size(&self) -> PhysicalSize<u32> {
+        crate::logical_to_physical_rounded(self.size, self.scale_factor)
+    }
+    
+    fn role(&self) -> WindowRole<'_> {
+        WindowRole::Toplevel(self)
+    }
+    
+    fn role_mut(&mut self) -> WindowRoleMut<'_> {
+        WindowRoleMut::Toplevel(self)
+    }
+}
+
+impl<T: Application + 'static> WinitToplevel for Window<T> {
     fn title(&self) -> &str {
         &self.title
     }
@@ -341,14 +370,6 @@ impl<T: Application + 'static> CoreWindow for Window<T> {
         self.title = title;
     }
 
-    fn scale_factor(&self) -> f64 {
-        self.scale_factor
-    }
-
-    fn inner_size(&self) -> PhysicalSize<u32> {
-        crate::logical_to_physical_rounded(self.size, self.scale_factor)
-    }
-
     fn set_minimized(&mut self, minimize: bool) {
         if minimize {
             self.window.set_minimized();
@@ -370,17 +391,6 @@ impl<T: Application + 'static> CoreWindow for Window<T> {
 
     fn primary_monitor(&self) -> Option<MonitorId> {
         None
-    }
-}
-
-impl<T: Application + 'static> HasWindowHandle for Window<T> {
-    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        let ptr = self.window.wl_surface().id().as_ptr();
-        let handle = WaylandWindowHandle::new({
-            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
-        });
-
-        unsafe { Ok(WindowHandle::borrow_raw(handle.into())) }
     }
 }
 
