@@ -1,18 +1,44 @@
 // TODO figure out how to do WindowId.
 
+use std::any::Any;
+
 pub use raw_window_handle::HasWindowHandle;
 pub use raw_window_handle_05::HasRawWindowHandle as HasRawWindowHandle05;
 
-use crate::dpi::{LogicalSize, PhysicalSize, Position, Size};
+use crate::dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Position, Size};
 use crate::monitor::MonitorId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WindowId(pub u128);
 
-/// Common requests to perform on the window.
-pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
+pub enum WindowRole<'a> {
+    Toplevel(&'a dyn Toplevel),
+    Subview(&'a dyn Subview)
+}
+
+pub enum WindowRoleMut<'a> {
+    Toplevel(&'a mut dyn Toplevel),
+    Subview(&'a mut dyn Subview)
+}
+
+/// Common API for all rendering targets.
+pub trait Surface: HasWindowHandle + HasRawWindowHandle05 {
     fn id(&self) -> WindowId;
 
+    fn scale_factor(&self) -> f64;
+
+    fn request_redraw(&mut self);
+
+    fn inner_size(&self) -> PhysicalSize<u32>;
+
+    /// Downcasts this surface to its specific type.
+    fn role(&self) -> WindowRole;
+    /// Downcasts this surface to its specific type. Returns a mutable reference.
+    fn role_mut(&mut self) -> WindowRoleMut;
+}
+
+/// API for toplevel windows and dialogs.
+pub trait Toplevel: Surface {
     /// Gets the current title of the window.
     fn title(&self) -> &str;
 
@@ -22,12 +48,6 @@ pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
 
     fn set_theme(&mut self, theme: Option<Theme>);
 
-    fn scale_factor(&self) -> f64;
-
-    fn request_redraw(&mut self);
-
-    fn inner_size(&self) -> PhysicalSize<u32>;
-
     fn set_minimized(&mut self, minimize: bool);
 
     fn set_maximized(&mut self, maximized: bool);
@@ -35,6 +55,11 @@ pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
     fn current_monitor(&self) -> Option<MonitorId>;
 
     fn primary_monitor(&self) -> Option<MonitorId>;
+}
+
+/// API for subviews (window style `WS_CHILD` on Windows, `NSView` on MacOS, `wl_subsurface` on Wayland).
+pub trait Subview: Surface  {
+    fn set_position(&self, position: PhysicalPosition<u32>);
 }
 
 /// Attributes to use when creating a window.

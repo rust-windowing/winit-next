@@ -4,7 +4,7 @@ use std::time::Duration;
 use winit_core::application::{Application, ApplicationWindow, StartCause};
 use winit_core::dpi::PhysicalSize;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
-use winit_core::window::WindowId;
+use winit_core::window::{Toplevel, WindowId, WindowRole};
 use winit_wayland::event_loop::EventLoop;
 use winit_wayland::MyCoolTrait;
 
@@ -89,9 +89,11 @@ impl ApplicationWindow for State {
             _ => return,
         };
 
-        if let Some(monitor_id) = window.current_monitor() {
-            let monitor = loop_handle.get_monitor(monitor_id).unwrap();
-            println!("Current monitor name {:?}", monitor.name());
+        if let WindowRole::Toplevel(toplevel) = window.role() {
+            if let Some(monitor_id) = toplevel.current_monitor() {
+                let monitor = loop_handle.get_monitor(monitor_id).unwrap();
+                println!("Current monitor name {:?}", monitor.name());
+            }
         }
 
         let size = window.inner_size();

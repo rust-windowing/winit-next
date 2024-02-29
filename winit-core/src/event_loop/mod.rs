@@ -5,7 +5,7 @@ use raw_window_handle_05::HasRawDisplayHandle as HasRawDisplayHandle05;
 
 use crate::application::Application;
 use crate::monitor::{Monitor, MonitorId};
-use crate::window::{Window, WindowAttributes, WindowId};
+use crate::window::{Surface, WindowAttributes, WindowId};
 
 use self::proxy::EventLoopProxy;
 
@@ -37,9 +37,9 @@ pub trait EventLoopHandle: HasDisplayHandle {
 
     fn num_windows(&self) -> usize;
 
-    fn get_window(&self, window_id: WindowId) -> Option<&dyn Window>;
+    fn get_window(&self, window_id: WindowId) -> Option<&dyn Surface>;
 
-    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn Window>;
+    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn Surface>;
 
     fn get_monitor(&self, monitor_id: MonitorId) -> Option<&dyn Monitor>;
 
