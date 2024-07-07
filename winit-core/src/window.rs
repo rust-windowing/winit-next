@@ -1,18 +1,46 @@
 // TODO figure out how to do WindowId.
 
+use std::any::Any;
+
 pub use raw_window_handle::HasWindowHandle;
 pub use raw_window_handle_05::HasRawWindowHandle as HasRawWindowHandle05;
 
-use crate::dpi::{LogicalSize, PhysicalSize, Position, Size};
+use crate::dpi::{
+    self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size,
+};
 use crate::monitor::MonitorId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WindowId(pub u128);
 
-/// Common requests to perform on the window.
-pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
+pub enum WindowRole<'a> {
+    Toplevel(&'a dyn Toplevel),
+    Popup(&'a dyn Popup),
+}
+
+pub enum WindowRoleMut<'a> {
+    Toplevel(&'a mut dyn Toplevel),
+    Popup(&'a mut dyn Popup),
+}
+
+/// Common API for all rendering targets.
+pub trait Surface: HasWindowHandle + HasRawWindowHandle05 {
     fn id(&self) -> WindowId;
 
+    fn scale_factor(&self) -> f64;
+
+    fn request_redraw(&mut self);
+
+    fn inner_size(&self) -> PhysicalSize<u32>;
+
+    /// Downcasts this surface to its specific type.
+    fn role(&self) -> WindowRole;
+    /// Downcasts this surface to its specific type. Returns a mutable reference.
+    fn role_mut(&mut self) -> WindowRoleMut;
+}
+
+/// API for toplevel windows and dialogs.
+pub trait Toplevel: Surface {
     /// Gets the current title of the window.
     fn title(&self) -> &str;
 
@@ -22,12 +50,6 @@ pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
 
     fn set_theme(&mut self, theme: Option<Theme>);
 
-    fn scale_factor(&self) -> f64;
-
-    fn request_redraw(&mut self);
-
-    fn inner_size(&self) -> PhysicalSize<u32>;
-
     fn set_minimized(&mut self, minimize: bool);
 
     fn set_maximized(&mut self, maximized: bool);
@@ -35,6 +57,11 @@ pub trait Window: HasWindowHandle + HasRawWindowHandle05 {
     fn current_monitor(&self) -> Option<MonitorId>;
 
     fn primary_monitor(&self) -> Option<MonitorId>;
+}
+
+/// API for popups.
+pub trait Popup: Surface {
+    // fn set_position(&mut self, position: PhysicalPosition<u32>);
 }
 
 /// Attributes to use when creating a window.
@@ -287,6 +314,119 @@ impl WindowAttributes {
     #[inline]
     pub fn with_theme(mut self, theme: Option<Theme>) -> Self {
         self.theme = theme;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u32)]
+pub enum AnchorDirection {
+    Center = 0,
+    North = 1,
+    Northeast = 2,
+    East = 3,
+    Southeast = 4,
+    South = 5,
+    Southwest = 6,
+    West = 7,
+    Northwest = 8,
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct AnchorHints: u32 {
+        const NONE = 0;
+        const FLIP_X = 1 << 0;
+        const FLIP_Y = 1 << 1;
+        const SLIDE_X = 1 << 2;
+        const SLIDE_Y = 1 << 3;
+        const RESIZE_X = 1 << 4;
+        const RESIZE_Y = 1 << 5;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PopupAttributes {
+    pub inner_size: Size,
+    pub anchor_rect: (Position, Size),
+    pub rect_anchor: AnchorDirection,
+    pub surface_anchor: AnchorDirection,
+    pub offset: Position,
+    pub anchor_hints: AnchorHints,
+}
+
+impl Default for PopupAttributes {
+    fn default() -> Self {
+        Self {
+            inner_size: LogicalSize::new(100.0, 75.0).into(),
+            anchor_rect: (
+                LogicalPosition::new(0.0, 0.0).into(),
+                LogicalSize::new(100.0, 100.0).into(),
+            ),
+            rect_anchor: AnchorDirection::Center,
+            surface_anchor: AnchorDirection::Center,
+            offset: LogicalPosition::new(0.0, 0.0).into(),
+            anchor_hints: AnchorHints::NONE,
+        }
+    }
+}
+
+impl PopupAttributes {
+    pub fn inner_size(&self) -> Size {
+        self.inner_size
+    }
+
+    pub fn with_inner_size<S: Into<Size>>(mut self, size: S) -> Self {
+        self.inner_size = size.into();
+        self
+    }
+
+    pub fn anchor_rect(&self) -> (Position, Size) {
+        self.anchor_rect
+    }
+
+    pub fn with_anchor_rect<P: Into<Position>, S: Into<Size>>(
+        mut self,
+        top_left: P,
+        size: S,
+    ) -> Self {
+        self.anchor_rect = (top_left.into(), size.into());
+        self
+    }
+
+    pub fn rect_anchor(&self) -> AnchorDirection {
+        self.rect_anchor
+    }
+
+    pub fn with_rect_anchor(mut self, direction: AnchorDirection) -> Self {
+        self.rect_anchor = direction;
+        self
+    }
+
+    pub fn surface_anchor(&self) -> AnchorDirection {
+        self.surface_anchor
+    }
+
+    pub fn with_surface_anchor(mut self, direction: AnchorDirection) -> Self {
+        self.surface_anchor = direction;
+        self
+    }
+
+    pub fn offset(&self) -> Position {
+        self.offset
+    }
+
+    pub fn with_offset<P: Into<Position>>(mut self, offset: P) -> Self {
+        self.offset = offset.into();
+        self
+    }
+
+    pub fn anchor_hints(&self) -> AnchorHints {
+        self.anchor_hints
+    }
+
+    pub fn with_anchor_hints(mut self, hints: AnchorHints) -> Self {
+        self.anchor_hints = hints;
         self
     }
 }

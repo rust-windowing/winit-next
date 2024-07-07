@@ -28,23 +28,33 @@ use sctk::subcompositor::SubcompositorState;
 use winit_core::application::Application;
 use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::EventLoopHandle;
-use winit_core::monitor::{Monitor as CoreMonitor, MonitorId};
-use winit_core::window::{Window as CoreWindow, WindowAttributes, WindowId};
+use winit_core::monitor::{Monitor as WinitMonitor, MonitorId};
+use winit_core::window::{Surface as WinitSurface, WindowAttributes, WindowId};
 
 use crate::monitor::Monitor;
-use crate::window::Window;
+use crate::popup::Popup;
+use crate::toplevel::Toplevel;
 
 use crate::event_loop::{EventLoopProxy, RuntimeState};
+use crate::window::Window;
 
 impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
     fn proxy(&self) -> Arc<dyn CoreEventLoopProxy> {
         self.proxy.clone()
     }
 
-    fn create_window(&mut self, attributes: &WindowAttributes) -> Result<(), ()> {
-        let window = Window::new(self, attributes);
+    fn create_toplevel(&mut self, attributes: &WindowAttributes) -> Result<(), ()> {
+        let window = Toplevel::new(self, attributes);
         let window_id = window.id();
-        self.windows.insert(window_id, window);
+        self.windows.insert(window_id, Window::Toplevel(window));
+        Ok(())
+    }
+
+    // TODO(jgcodes2020): can/should we ensure window type safety here?
+    fn create_popup(&mut self, parent: WindowId, attributes: &winit_core::window::PopupAttributes) -> Result<(), ()> {
+        let popup = Popup::new(self, parent, attributes)?;
+        let popup_id = popup.id();
+        self.windows.insert(popup_id, Window::Popup(popup));
         Ok(())
     }
 
@@ -52,22 +62,22 @@ impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
         self.windows.len()
     }
 
-    fn get_window(&self, window_id: WindowId) -> Option<&dyn CoreWindow> {
+    fn get_window(&self, window_id: WindowId) -> Option<&dyn WinitSurface> {
         let window = self.windows.get(&window_id)?;
 
-        if window.last_configure.is_none() {
-            return None;
+        if window.configured() {
+            Some(window as &dyn WinitSurface)
         } else {
-            Some(window as &dyn CoreWindow)
+            None
         }
     }
 
-    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn CoreWindow> {
+    fn get_window_mut(&mut self, window_id: WindowId) -> Option<&mut dyn WinitSurface> {
         let window = self.windows.get_mut(&window_id)?;
-        if window.last_configure.is_none() {
-            return None;
+        if window.configured() {
+            Some(window as &mut dyn WinitSurface)
         } else {
-            Some(window as &mut dyn CoreWindow)
+            None
         }
     }
 
@@ -75,16 +85,18 @@ impl<T: Application + 'static> EventLoopHandle for WinitState<T> {
         self.exit = true;
     }
 
-    fn get_monitor(&self, monitor_id: MonitorId) -> Option<&dyn CoreMonitor> {
+    fn get_monitor(&self, monitor_id: MonitorId) -> Option<&dyn WinitMonitor> {
         self.monitors
             .iter()
             .find(|monitor| monitor.id() == monitor_id)
-            .map(|monitor| monitor as &dyn CoreMonitor)
+            .map(|monitor| monitor as &dyn WinitMonitor)
     }
 
-    fn monitors(&self) -> Vec<&dyn CoreMonitor> {
-        self.monitors.iter().map(|monitor| monitor as &dyn CoreMonitor).collect()
+    fn monitors(&self) -> Vec<&dyn WinitMonitor> {
+        self.monitors.iter().map(|monitor| monitor as &dyn WinitMonitor).collect()
     }
+    
+    
 }
 
 impl<T: Application + 'static> HasDisplayHandle for WinitState<T> {
@@ -199,9 +211,13 @@ impl<T: Application + 'static> WinitState<T> {
     ) {
         let winit = &mut state.winit;
         let window_id = crate::make_wid(surface);
+        // let window = match winit.windows.get_mut(&window_id) {
+        //     Some(window) => window,
+        //     None => return,
+        // };
         let window = match winit.windows.get_mut(&window_id) {
-            Some(window) => window,
-            None => return,
+            Some(Window::Toplevel(window)) => window,
+            _ => return,
         };
 
         window.set_scale_factor(scale_factor);
@@ -302,3 +318,4 @@ sctk::delegate_shm!(@<T: Application + 'static> RuntimeState<T>);
 sctk::delegate_compositor!(@<T: Application + 'static> RuntimeState<T>);
 sctk::delegate_xdg_shell!(@<T: Application + 'static> RuntimeState<T>);
 sctk::delegate_xdg_window!(@<T: Application + 'static> RuntimeState<T>);
+sctk::delegate_xdg_popup!(@<T: Application + 'static> RuntimeState<T>);

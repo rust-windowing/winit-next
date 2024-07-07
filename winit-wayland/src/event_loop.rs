@@ -20,7 +20,7 @@ use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
 use winit_core::application::Application;
 use winit_core::event_loop::proxy::EventLoopProxy as CoreEventLoopProxy;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
-use winit_core::window::{Window as CoreWindow, WindowId};
+use winit_core::window::{Surface as CoreSurface, WindowId};
 
 use crate::state::WinitState;
 use crate::MyCoolTrait;
@@ -93,7 +93,7 @@ impl<T: Application + 'static> EventLoopRequests<T> for EventLoop<T> {
             let user = self.state.user.as_mut().unwrap();
 
             for (window_id, window) in &mut winit.windows {
-                if mem::take(&mut window.redraw) {
+                if window.take_redraw() {
                     redraw.push(*window_id);
                 }
             }

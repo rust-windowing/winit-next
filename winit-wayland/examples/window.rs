@@ -4,13 +4,14 @@ use std::time::Duration;
 use winit_core::application::{Application, ApplicationWindow, StartCause};
 use winit_core::dpi::PhysicalSize;
 use winit_core::event_loop::{EventLoopHandle, EventLoopRequests};
-use winit_core::window::WindowId;
+use winit_core::window::{Toplevel, WindowId, WindowRole};
 use winit_wayland::event_loop::EventLoop;
 use winit_wayland::MyCoolTrait;
 
 use softbuffer::{Context, Surface};
 
 const DARK_GRAY: u32 = 0xFF181818;
+const ORANGE: u32 = 0xFF_FF8000;
 
 pub struct State {
     context: Context,
@@ -39,7 +40,7 @@ impl Application for State {
 
     fn new_events(&mut self, loop_handle: &mut dyn EventLoopHandle, start_cause: StartCause) {
         println!("Start cause {start_cause:?}");
-        let _ = loop_handle.create_window(&Default::default());
+        let _ = loop_handle.create_toplevel(&Default::default());
     }
 
     fn about_to_wait(&mut self, _: &mut dyn EventLoopHandle) {
@@ -89,17 +90,33 @@ impl ApplicationWindow for State {
             _ => return,
         };
 
-        if let Some(monitor_id) = window.current_monitor() {
-            let monitor = loop_handle.get_monitor(monitor_id).unwrap();
-            println!("Current monitor name {:?}", monitor.name());
-        }
+        match window.role() {
+            WindowRole::Toplevel(toplevel) => {
+                if let Some(monitor_id) = toplevel.current_monitor() {
+                    let monitor = loop_handle.get_monitor(monitor_id).unwrap();
+                    println!("Current monitor name {:?}", monitor.name());
+                }
 
-        let size = window.inner_size();
-        let _ = surface
-            .resize(NonZeroU32::new(size.width).unwrap(), NonZeroU32::new(size.height).unwrap());
-        let mut buffer = surface.buffer_mut().unwrap();
-        buffer.fill(DARK_GRAY);
-        buffer.present().unwrap();
+                let size = window.inner_size();
+                let _ = surface.resize(
+                    NonZeroU32::new(size.width).unwrap(),
+                    NonZeroU32::new(size.height).unwrap(),
+                );
+                let mut buffer = surface.buffer_mut().unwrap();
+                buffer.fill(DARK_GRAY);
+                buffer.present().unwrap();
+            },
+            WindowRole::Popup(popup) => {
+                let size = window.inner_size();
+                let _ = surface.resize(
+                    NonZeroU32::new(size.width).unwrap(),
+                    NonZeroU32::new(size.height).unwrap(),
+                );
+                let mut buffer = surface.buffer_mut().unwrap();
+                buffer.fill(ORANGE);
+                buffer.present().unwrap();
+            },
+        }
     }
 
     fn destroyed(&mut self, loop_handle: &mut dyn EventLoopHandle, _: WindowId) {
